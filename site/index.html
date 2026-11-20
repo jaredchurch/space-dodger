@@ -125,10 +125,10 @@
     obstacles=obstacles.filter(o=>o.y<H+o.r);
     pickups=pickups.filter(p=>p.y<H+30);
 
-    const protectedNow=performance.now()<hitUntil||performance.now()<shieldUntil;
     for(const o of obstacles) {
       if(!o.hit&&circleRect(o.x,o.y,o.r,{...player,w:player.w*.75,h:player.h*.75})) {
         o.hit=true;
+        const protectedNow=performance.now()<hitUntil||performance.now()<shieldUntil;
         if(!protectedNow){lives--;hitUntil=performance.now()+2000;updateHud();if(lives<=0){endGame();return;}}
       }
     }
