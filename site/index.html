@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#08111f">
+  <title>Space Dodger</title>
+  <style>
+    :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body {
+      min-height: 100vh; margin: 0; display: grid; place-items: center;
+      color: #edf4ff; background: radial-gradient(ellipse at 50% 15%, #18365a 0, #0b1a30 42%, #050a13 100%);
+    }
+    main { width: min(90vw, 680px); padding: 3rem 1.5rem; text-align: center; }
+    .ship { font-size: clamp(4rem, 14vw, 7rem); line-height: 1; filter: drop-shadow(0 0 22px #58b8ff88); }
+    h1 { margin: 1.2rem 0 .5rem; font-size: clamp(2.4rem, 8vw, 4.5rem); letter-spacing: .06em; }
+    p { color: #b7c9df; font-size: 1.1rem; line-height: 1.6; }
+    .status { display: inline-block; margin-top: 1.2rem; padding: .55rem 1rem; border: 1px solid #4c91c9; border-radius: 999px; color: #9ed5ff; background: #102b46aa; }
+    footer { margin-top: 3rem; color: #71849d; font-size: .85rem; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="ship" aria-hidden="true">🚀</div>
+    <h1>SPACE DODGER</h1>
+    <p>Hello, Samuel! Your game project has officially launched.</p>
+    <p>Watch this space. The mission to dodge asteroids, collect coins and upgrade your ship starts here.</p>
+    <div class="status">Coming soon: first playable version</div>
+    <footer>Made by Samuel, with a little help from the crew.</footer>
+  </main>
+</body>
+</html>
