@@ -3,31 +3,187 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#08111f">
+  <meta name="theme-color" content="#07111f">
   <title>Space Dodger</title>
   <style>
     :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     * { box-sizing: border-box; }
-    body {
-      min-height: 100vh; margin: 0; display: grid; place-items: center;
-      color: #edf4ff; background: radial-gradient(ellipse at 50% 15%, #18365a 0, #0b1a30 42%, #050a13 100%);
-    }
-    main { width: min(90vw, 680px); padding: 3rem 1.5rem; text-align: center; }
-    .ship { font-size: clamp(4rem, 14vw, 7rem); line-height: 1; filter: drop-shadow(0 0 22px #58b8ff88); }
-    h1 { margin: 1.2rem 0 .5rem; font-size: clamp(2.4rem, 8vw, 4.5rem); letter-spacing: .06em; }
-    p { color: #b7c9df; font-size: 1.1rem; line-height: 1.6; }
-    .status { display: inline-block; margin-top: 1.2rem; padding: .55rem 1rem; border: 1px solid #4c91c9; border-radius: 999px; color: #9ed5ff; background: #102b46aa; }
-    footer { margin-top: 3rem; color: #71849d; font-size: .85rem; }
+    body { min-height:100vh; margin:0; padding:18px; display:grid; place-items:center; color:#eef6ff; background:radial-gradient(ellipse at 50% 8%,#193b61 0,#0a1b30 48%,#040912 100%); }
+    main { width:min(100%,560px); text-align:center; }
+    h1 { margin:0 0 5px; font-size:clamp(1.7rem,6vw,2.5rem); letter-spacing:.12em; }
+    .tagline { margin:0 0 14px; color:#a9bfd8; }
+    .hud { display:flex; justify-content:space-between; gap:8px; margin:0 auto 9px; max-width:480px; font-weight:700; font-size:.95rem; }
+    .hud span { padding:7px 10px; border:1px solid #284867; border-radius:9px; background:#0a1c30; }
+    .game-wrap { position:relative; width:min(100%,480px); margin:auto; border:2px solid #315a7d; border-radius:14px; overflow:hidden; box-shadow:0 18px 60px #0009,0 0 28px #4bb9ff22; background:#050d19; }
+    canvas { display:block; width:100%; height:auto; aspect-ratio:2/3; }
+    .overlay { position:absolute; inset:0; display:grid; place-items:center; padding:24px; background:#04101bdc; backdrop-filter:blur(5px); }
+    .panel { max-width:340px; padding:22px; border:1px solid #467ba4; border-radius:16px; background:#0b2035ed; box-shadow:0 10px 35px #0008; }
+    .panel h2 { margin:0 0 10px; font-size:1.8rem; }
+    .panel p { color:#c0d3e8; line-height:1.5; margin:8px 0 16px; }
+    button { border:0; border-radius:999px; padding:12px 24px; color:#06111c; background:#69d6ff; font:700 1rem inherit; cursor:pointer; box-shadow:0 4px 18px #69d6ff44; }
+    button:hover { background:#a1e8ff; transform:translateY(-1px); }
+    .help { margin:12px auto 0; max-width:480px; color:#a9bfd8; font-size:.9rem; line-height:1.5; }
+    .hidden { display:none; }
+    .power { color:#8fffd0; }
+    @media (max-width:420px) { body{padding:10px} .hud{font-size:.8rem}.hud span{padding:6px 7px} }
   </style>
 </head>
 <body>
-  <main>
-    <div class="ship" aria-hidden="true">🚀</div>
-    <h1>SPACE DODGER</h1>
-    <p>Hello, Samuel! Your game project has officially launched.</p>
-    <p>Watch this space. The mission to dodge asteroids, collect coins and upgrade your ship starts here.</p>
-    <div class="status">Coming soon: first playable version</div>
-    <footer>Made by Samuel, with a little help from the crew.</footer>
-  </main>
+<main>
+  <h1>SPACE DODGER</h1>
+  <p class="tagline">Dodge asteroids. Collect coins. Stay alive.</p>
+  <div class="hud" aria-live="polite">
+    <span id="score">Score: 0</span><span id="lives">Lives: 5</span><span id="coins">Coins: 0</span>
+  </div>
+  <div class="game-wrap">
+    <canvas id="game" width="480" height="720" aria-label="Space Dodger game area"></canvas>
+    <section class="overlay" id="overlay">
+      <div class="panel">
+        <h2 id="panel-title">Ready, pilot?</h2>
+        <p id="panel-copy">Use the ← and → arrow keys to steer your ship. Dodge asteroids and collect the gold coins. You have five lives!</p>
+        <button id="start-button" type="button">Start game</button>
+        <p id="best-copy">Best score: 0</p>
+      </div>
+    </section>
+  </div>
+  <p class="help">Controls: ← → move · ↑ ↓ also work. Green shields grant 20 seconds of invincibility. After a hit, your ship flashes for 2 seconds.</p>
+</main>
+<script>
+(() => {
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const $ = id => document.getElementById(id);
+  const W = canvas.width, H = canvas.height;
+  const keys = new Set();
+  let state = 'ready', lastTime = 0, elapsed = 0, score = 0, coins = 0, lives = 5;
+  let obstacleTimer = 0, coinTimer = 0, powerTimer = 0, obstacles = [], pickups = [], stars = [];
+  let hitUntil = 0, shieldUntil = 0, best = Number(localStorage.getItem('spaceDodgerBest') || 0);
+  const player = { x: W/2, y: H-100, w: 38, h: 48, speed: 310 };
+  $('best-copy').textContent = 'Best score: ' + best;
+
+  for (let i=0;i<90;i++) stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+.3,s:18+Math.random()*45});
+
+  function reset() {
+    score=0; coins=0; lives=5; elapsed=0; obstacleTimer=.5; coinTimer=1.1; powerTimer=8;
+    obstacles=[]; pickups=[]; player.x=W/2; player.y=H-100; hitUntil=0; shieldUntil=0;
+    updateHud();
+  }
+  function updateHud() {
+    $('score').textContent='Score: '+Math.floor(score);
+    $('lives').textContent='Lives: '+lives;
+    $('coins').textContent='Coins: '+coins;
+  }
+  function start() { reset(); state='playing'; $('overlay').classList.add('hidden'); lastTime=performance.now(); requestAnimationFrame(loop); }
+  function endGame() {
+    state='over';
+    const finalScore=Math.floor(score);
+    if(finalScore>best){best=finalScore;localStorage.setItem('spaceDodgerBest',String(best));}
+    $('panel-title').textContent='Game Over';
+    $('panel-copy').textContent='Final score: '+finalScore+' · Coins collected: '+coins+'. Fancy another flight?';
+    $('best-copy').textContent='Best score: '+best;
+    $('start-button').textContent='Play again';
+    $('overlay').classList.remove('hidden');
+  }
+  $('start-button').addEventListener('click',start);
+  window.addEventListener('keydown',e=>{
+    if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key)) e.preventDefault();
+    keys.add(e.key);
+    if((e.key==='Enter'||e.key===' ') && state!=='playing') start();
+  });
+  window.addEventListener('keyup',e=>keys.delete(e.key));
+  window.addEventListener('blur',()=>keys.clear());
+
+  function spawnRock() {
+    const r=17+Math.random()*23;
+    obstacles.push({x:r+Math.random()*(W-2*r),y:-r,r,rot:Math.random()*6.28,spin:(Math.random()-.5)*2.4,speed:165+Math.random()*75+elapsed*4});
+  }
+  function spawnCoin() { pickups.push({type:'coin',x:24+Math.random()*(W-48),y:-18,r:11,speed:175+elapsed*3,phase:Math.random()*6}); }
+  function spawnShield() { pickups.push({type:'shield',x:28+Math.random()*(W-56),y:-20,r:15,speed:150+elapsed*2}); }
+
+  function circleRect(cx,cy,r,rect) {
+    const x=Math.max(rect.x-rect.w/2,Math.min(cx,rect.x+rect.w/2));
+    const y=Math.max(rect.y-rect.h/2,Math.min(cy,rect.y+rect.h/2));
+    return (cx-x)**2+(cy-y)**2<r*r;
+  }
+  function update(dt) {
+    elapsed+=dt;
+    score+=dt*5;
+    const dx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0);
+    const dy=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
+    player.x=Math.max(25,Math.min(W-25,player.x+dx*player.speed*dt));
+    player.y=Math.max(35,Math.min(H-35,player.y+dy*player.speed*dt));
+
+    obstacleTimer-=dt; coinTimer-=dt; powerTimer-=dt;
+    const rockInterval=Math.max(.38,1.15-elapsed*.009);
+    if(obstacleTimer<=0){spawnRock();obstacleTimer=rockInterval*(.75+Math.random()*.5);}
+    if(coinTimer<=0){spawnCoin();coinTimer=1.25+Math.random()*1.15;}
+    if(powerTimer<=0){spawnShield();powerTimer=17+Math.random()*9;}
+
+    stars.forEach(s=>{s.y+=s.s*dt*(1+elapsed*.012);if(s.y>H){s.y=0;s.x=Math.random()*W;}});
+    obstacles.forEach(o=>{o.y+=o.speed*dt;o.rot+=o.spin*dt;});
+    pickups.forEach(p=>{p.y+=p.speed*dt;if(p.type==='coin')p.phase+=dt*5;});
+    obstacles=obstacles.filter(o=>o.y<H+o.r);
+    pickups=pickups.filter(p=>p.y<H+30);
+
+    const protectedNow=performance.now()<hitUntil||performance.now()<shieldUntil;
+    for(const o of obstacles) {
+      if(!o.hit&&circleRect(o.x,o.y,o.r,{...player,w:player.w*.75,h:player.h*.75})) {
+        o.hit=true;
+        if(!protectedNow){lives--;hitUntil=performance.now()+2000;updateHud();if(lives<=0){endGame();return;}}
+      }
+    }
+    for(const p of pickups) {
+      if(!p.taken&&circleRect(p.x,p.y,p.r,{...player,w:player.w,h:player.h})) {
+        p.taken=true;
+        if(p.type==='coin'){coins++;score+=25;} else {shieldUntil=performance.now()+20000;}
+        updateHud();
+      }
+    }
+    pickups=pickups.filter(p=>!p.taken);
+    updateHud();
+  }
+
+  function drawShip() {
+    const now=performance.now();
+    if(now<hitUntil && Math.floor(now/100)%2===0) return;
+    const shielded=now<shieldUntil;
+    ctx.save();ctx.translate(player.x,player.y);
+    if(shielded){ctx.strokeStyle='#75ffc9';ctx.lineWidth=3;ctx.shadowColor='#65ffcb';ctx.shadowBlur=22;ctx.beginPath();ctx.arc(0,0,36,0,Math.PI*2);ctx.stroke();}
+    ctx.shadowColor='#55caff';ctx.shadowBlur=18;
+    ctx.fillStyle='#d9f4ff';ctx.beginPath();ctx.moveTo(0,-27);ctx.lineTo(19,20);ctx.lineTo(0,12);ctx.lineTo(-19,20);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#4bc8ff';ctx.beginPath();ctx.moveTo(-8,8);ctx.lineTo(-15,24);ctx.lineTo(-3,19);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(8,8);ctx.lineTo(15,24);ctx.lineTo(3,19);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#2874aa';ctx.beginPath();ctx.ellipse(0,-5,6,11,0,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#ffb85c';ctx.shadowColor='#ff8b3d';ctx.beginPath();ctx.moveTo(-6,19);ctx.lineTo(0,32+Math.random()*7);ctx.lineTo(6,19);ctx.fill();
+    ctx.restore();
+  }
+  function drawRock(o) {
+    ctx.save();ctx.translate(o.x,o.y);ctx.rotate(o.rot);ctx.fillStyle='#8b98a8';ctx.strokeStyle='#c2ccd7';ctx.lineWidth=2;
+    ctx.beginPath();for(let i=0;i<9;i++){const a=i/9*Math.PI*2;const r=o.r*(.78+((i*7)%4)*.07);const x=Math.cos(a)*r,y=Math.sin(a)*r;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.fillStyle='#697889';ctx.beginPath();ctx.arc(-o.r*.25,-o.r*.1,o.r*.22,0,Math.PI*2);ctx.fill();ctx.restore();
+  }
+  function draw() {
+    ctx.fillStyle='#06101d';ctx.fillRect(0,0,W,H);
+    stars.forEach(s=>{ctx.fillStyle='rgba(190,220,255,'+(.35+s.r*.25)+')';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();});
+    ctx.strokeStyle='#142a40';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,H-55);ctx.lineTo(W,H-55);ctx.stroke();
+    obstacles.forEach(drawRock);
+    pickups.forEach(p=>{
+      ctx.save();ctx.translate(p.x,p.y);
+      if(p.type==='coin'){ctx.rotate(Math.sin(p.phase)*.18);ctx.fillStyle='#ffd45c';ctx.strokeStyle='#fff0a8';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,p.r,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#9b6510';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('$',0,1);}
+      else{ctx.strokeStyle='#7affc8';ctx.lineWidth=4;ctx.shadowColor='#4dffc0';ctx.shadowBlur=18;ctx.beginPath();ctx.arc(0,0,p.r,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#b4ffe1';ctx.font='bold 17px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('S',0,1);}
+      ctx.restore();
+    });
+    drawShip();
+    if(performance.now()<shieldUntil){ctx.fillStyle='#8dffce';ctx.font='bold 15px sans-serif';ctx.textAlign='center';ctx.fillText('INVINCIBLE',W/2,28);}
+  }
+  function loop(now) {
+    if(state!=='playing')return;
+    const dt=Math.min((now-lastTime)/1000,.033);lastTime=now;
+    update(dt);draw();
+    if(state==='playing')requestAnimationFrame(loop);
+  }
+  draw();
+})();
+</script>
 </body>
 </html>
