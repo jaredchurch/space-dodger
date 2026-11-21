@@ -26,4 +26,5 @@ Every push to `main` deploys the contents of `site/` to GitHub Pages using `.git
 
 ## Next ideas
 
-Ship upgrades and the cheat code are not in this first playable version yet. They can be added in later iterations, ideally with Samuel helping choose and build the features.
+- **Version history requirement:** Every released version of Space Dodger must remain available on the site. The approach for retaining and accessing previous releases is not yet decided; leave the implementation design for a later discussion.
+- Ship upgrades and the cheat code are not in this first playable version yet. They can be added in later iterations, ideally with Samuel helping choose and build the features.
