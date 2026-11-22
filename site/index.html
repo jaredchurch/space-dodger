@@ -84,7 +84,7 @@
     $('lives').textContent='Lives: '+lives;
     $('coins').textContent='Coins: '+coins;
   }
-  function start() { reset(); state='playing'; $('overlay').classList.add('hidden'); lastTime=performance.now(); requestAnimationFrame(loop); }
+  function start() { reset(); state='playing'; $('overlay').classList.add('hidden'); $('pause-button').classList.remove('hidden'); $('pause-button').textContent='Pause'; lastTime=performance.now(); requestAnimationFrame(loop); }
   function pauseGame() {
     if(state!=='playing') return;
     state='paused'; keys.clear();
