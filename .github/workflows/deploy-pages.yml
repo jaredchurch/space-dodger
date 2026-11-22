@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: github-pages
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build:
@@ -28,7 +28,8 @@ jobs:
       - name: Check out UAT candidate
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event_name == 'push' && github.ref_name == 'uat' && github.sha || 'uat' }}
+          # Always deploy the current UAT branch head, not an older queued push commit.
+          ref: uat
           path: uat-source
           fetch-depth: 0
 
