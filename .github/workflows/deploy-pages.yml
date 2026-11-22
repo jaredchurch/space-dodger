@@ -105,7 +105,7 @@ jobs:
               [[ "$tag" =~ ^v[0-9]+$ ]] || continue
               printf '<li><a href="./%s/">%s</a></li>\n' "$tag" "$tag"
             done < <(git -C main-source tag --list 'v[0-9]*' --sort=-version:refname)
-            echo '</ul><p><a href="../../">Back to the current game</a></p></body></html>'
+            echo '</ul><p><a href="../">Back to the current game</a></p></body></html>'
           } > dist/versions/index.html
 
           touch dist/.nojekyll
