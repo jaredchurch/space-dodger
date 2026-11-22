@@ -14,17 +14,26 @@ Samuel's first space-themed vertical-scrolling game.
 
 ## Play
 
-[Play Space Dodger](https://jaredchurch.github.io/space-dodger/)
+- [Production game](https://jaredchurch.github.io/space-dodger/)
+- [UAT candidate](https://jaredchurch.github.io/space-dodger/uat/)
+- [Version history](https://jaredchurch.github.io/space-dodger/versions/)
 
 ## Run locally
 
 Open `site/index.html` in a modern web browser. No build tools or dependencies are required.
 
-## Deployment
+## Branch and release process
 
-Every push to `main` deploys the contents of `site/` to GitHub Pages using `.github/workflows/deploy-pages.yml`.
+- `uat` is the candidate/testing branch. Every push to `uat` automatically publishes the candidate at `/uat/`.
+- `main` is the production branch. Merge a pull request from `uat` into `main` to release; the merge automatically triggers the production deployment.
+- Every production release is assigned a sequential whole-number version (`v1`, `v2`, `v3`, ...).
+- Each release remains playable at `/versions/vN/`. The version-history page links to all retained releases.
+- The existing live game is retained as `v1` when the archive mechanism is first initialised.
+- Deployments assemble the production root, current UAT candidate and all release archives into one complete GitHub Pages artifact. Publishing one environment must not overwrite the others.
+- To roll back, open a pull request from the desired historical release source into `main` following the repository's release procedure; do not delete or overwrite the archived version.
+
+The workflow is `.github/workflows/deploy-pages.yml`. GitHub Actions uses Node 24-compatible action versions.
 
 ## Next ideas
 
-- **Version history requirement:** Every released version of Space Dodger must remain available on the site. The approach for retaining and accessing previous releases is not yet decided; leave the implementation design for a later discussion.
 - Ship upgrades and the cheat code are not in this first playable version yet. They can be added in later iterations, ideally with Samuel helping choose and build the features.
