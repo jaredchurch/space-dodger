@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  actions: write
 
 concurrency:
   group: github-pages
@@ -127,17 +126,16 @@ jobs:
         with:
           path: ./dist
 
-  request-deployment:
+  deploy:
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      actions: write
-      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Request deployment using the main-branch publisher
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh api --method POST "repos/${GITHUB_REPOSITORY}/actions/workflows/publish-pages.yml/dispatches" \
-            -f ref=main \
-            -f "inputs[run_id]=${GITHUB_RUN_ID}"
+      - name: Deploy complete site to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
