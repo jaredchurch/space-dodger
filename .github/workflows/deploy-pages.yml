@@ -1,43 +1,137 @@
-name: Deploy site to GitHub Pages
+name: Build and deploy complete GitHub Pages site
 
 on:
   push:
-    branches: [main]
+    branches: [main, uat]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: pages
-  cancel-in-progress: true
+  group: github-pages
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.release.outputs.version }}
     steps:
-      - name: Check out repository
+      - name: Check out production source and release history
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'push' && github.ref_name == 'main' && github.sha || 'main' }}
+          path: main-source
+          fetch-depth: 0
+
+      - name: Check out UAT candidate
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'push' && github.ref_name == 'uat' && github.sha || 'uat' }}
+          path: uat-source
+          fetch-depth: 0
+
+      - name: Assign or identify production release version
+        id: release
+        shell: bash
+        env:
+          EVENT_BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          cd main-source
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --force --tags origin
+
+          current_tag="$(git tag --points-at HEAD --list 'v[0-9]*' | grep -E '^v[0-9]+$' | sort -V | tail -n 1 || true)"
+
+          if [[ "$EVENT_BRANCH" == "main" ]]; then
+            if [[ -z "$current_tag" ]]; then
+              latest_number="$(git tag --list 'v[0-9]*' | grep -E '^v[0-9]+$' | sed 's/^v//' | sort -n | tail -n 1 || true)"
+              if [[ -z "$latest_number" ]]; then
+                next_number=1
+              else
+                next_number=$((latest_number + 1))
+              fi
+              current_tag="v${next_number}"
+              git tag "$current_tag" HEAD
+              git push origin "refs/tags/$current_tag"
+            fi
+          else
+            latest_number="$(git tag --list 'v[0-9]*' | grep -E '^v[0-9]+$' | sed 's/^v//' | sort -n | tail -n 1 || true)"
+            if [[ -z "$latest_number" ]]; then
+              current_tag="v1"
+              git tag "$current_tag" HEAD
+              git push origin "refs/tags/$current_tag"
+            else
+              current_tag="v${latest_number}"
+            fi
+          fi
+
+          echo "version=$current_tag" >> "$GITHUB_OUTPUT"
+          echo "Building complete site; current production release: $current_tag"
+
+      - name: Assemble production, UAT and immutable release archives
+        shell: bash
+        env:
+          CURRENT_VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist dist/uat dist/versions
+
+          # Production root is always sourced from the latest immutable release tag.
+          git -C main-source archive "$CURRENT_VERSION" site | tar -x --strip-components=1 -C dist
+
+          # Include every tagged production release as a permanent playable snapshot.
+          while IFS= read -r tag; do
+            [[ "$tag" =~ ^v[0-9]+$ ]] || continue
+            mkdir -p "dist/versions/$tag"
+            git -C main-source archive "$tag" site | tar -x --strip-components=1 -C "dist/versions/$tag"
+          done < <(git -C main-source tag --list 'v[0-9]*' --sort=version:refname)
+
+          # The current UAT candidate is published alongside production, not over it.
+          cp -a uat-source/site/. dist/uat/
+
+          mkdir -p dist/versions
+          {
+            echo '<!doctype html>'
+            echo '<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">'
+            echo '<title>Space Dodger — Version History</title>'
+            echo '<style>body{font-family:system-ui,sans-serif;max-width:42rem;margin:3rem auto;padding:0 1rem;line-height:1.6}li{margin:.6rem 0}</style>'
+            echo '</head><body><h1>Space Dodger — Version History</h1>'
+            echo '<p>Every production release remains available to play.</p><ul>'
+            while IFS= read -r tag; do
+              [[ "$tag" =~ ^v[0-9]+$ ]] || continue
+              printf '<li><a href="./%s/">%s</a></li>\n' "$tag" "$tag"
+            done < <(git -C main-source tag --list 'v[0-9]*' --sort=-version:refname)
+            echo '</ul><p><a href="../../">Back to the current game</a></p></body></html>'
+          } > dist/versions/index.html
+
+          touch dist/.nojekyll
+          test -f dist/index.html
+          test -f dist/uat/index.html
+          test -f "dist/versions/$CURRENT_VERSION/index.html"
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v6
 
-      - name: Upload site
+      - name: Upload complete site
         uses: actions/upload-pages-artifact@v5
         with:
-          path: ./site
+          path: ./dist
 
   deploy:
     needs: build
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
       pages: write
       id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
+      - name: Deploy complete site to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
