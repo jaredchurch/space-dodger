@@ -94,10 +94,19 @@ jobs:
             [[ "$tag" =~ ^v[0-9]+$ ]] || continue
             mkdir -p "dist/versions/$tag"
             git -C main-source archive "$tag" site | tar -x --strip-components=1 -C "dist/versions/$tag"
+            archive_index="dist/versions/$tag/index.html"
+            if grep -q '__SPACE_DODGER_SCORE_SCOPE__' "$archive_index"; then
+              sed -i "s/__SPACE_DODGER_SCORE_SCOPE__/$tag/g" "$archive_index"
+            else
+              # Give the original v1 snapshot its own score namespace too.
+              sed -i "s/spaceDodgerBest/spaceDodgerBest:$tag/g" "$archive_index"
+            fi
           done < <(git -C main-source tag --list 'v[0-9]*' --sort=version:refname)
 
           # The current UAT candidate is published alongside production, not over it.
           cp -a uat-source/site/. dist/uat/
+          sed -i 's/__SPACE_DODGER_SCORE_SCOPE__/uat/g' dist/uat/index.html
+          sed -i "s/__SPACE_DODGER_SCORE_SCOPE__/$CURRENT_VERSION/g" dist/index.html
 
           {
             echo '<!doctype html>'
