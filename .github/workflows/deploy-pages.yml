@@ -139,3 +139,26 @@ jobs:
       - name: Deploy complete site to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
+
+      - name: Publish deployment summary
+        if: success()
+        shell: bash
+        env:
+          SITE_URL: ${{ steps.deployment.outputs.page_url }}
+          RELEASE_VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          set -euo pipefail
+          site_url="${SITE_URL%/}/"
+          {
+            echo "## Space Dodger deployment successful"
+            echo
+            echo "| Deployment | Link |"
+            echo "|---|---|"
+            echo "| UAT | [Open UAT](${site_url}uat/) |"
+            echo "| Current version (${RELEASE_VERSION}) | [Play ${RELEASE_VERSION}](${site_url}versions/${RELEASE_VERSION}/) |"
+            echo "| Production | [Open production](${site_url}) |"
+            echo
+            echo "Release version: **${RELEASE_VERSION}**"
+            echo
+            echo "Triggered by branch: **${GITHUB_REF_NAME}**"
+          } >> "$GITHUB_STEP_SUMMARY"
