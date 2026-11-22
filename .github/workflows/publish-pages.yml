@@ -33,6 +33,12 @@ jobs:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
           run-id: ${{ inputs.run_id }}
+          path: ./downloaded-site
+
+      - name: Register downloaded content as this run's Pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: ./downloaded-site
 
       - name: Deploy complete site to GitHub Pages
         id: deployment
