@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#07111f">
+  <meta name="space-dodger-score-scope" content="__SPACE_DODGER_SCORE_SCOPE__">
   <title>Space Dodger</title>
   <style>
     :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
@@ -57,7 +58,9 @@
   const keys = new Set();
   let state = 'ready', lastTime = 0, elapsed = 0, score = 0, coins = 0, lives = 5;
   let obstacleTimer = 0, coinTimer = 0, powerTimer = 0, obstacles = [], pickups = [], stars = [];
-  let hitUntil = 0, shieldUntil = 0, best = Number(localStorage.getItem('spaceDodgerBest') || 0);
+  const scoreScope = document.querySelector('meta[name="space-dodger-score-scope"]')?.content || 'unknown';
+  const bestScoreKey = 'spaceDodgerBest:' + scoreScope;
+  let hitUntil = 0, shieldUntil = 0, best = Number(localStorage.getItem(bestScoreKey) || 0);
   const player = { x: W/2, y: H-100, w: 38, h: 48, speed: 310 };
   $('best-copy').textContent = 'Best score: ' + best;
 
@@ -77,7 +80,7 @@
   function endGame() {
     state='over';
     const finalScore=Math.floor(score);
-    if(finalScore>best){best=finalScore;localStorage.setItem('spaceDodgerBest',String(best));}
+    if(finalScore>best){best=finalScore;localStorage.setItem(bestScoreKey,String(best));}
     $('panel-title').textContent='Game Over';
     $('panel-copy').textContent='Final score: '+finalScore+' · Coins collected: '+coins+'. Fancy another flight?';
     $('best-copy').textContent='Best score: '+best;
