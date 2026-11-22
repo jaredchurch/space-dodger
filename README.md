@@ -30,6 +30,7 @@ Open `site/index.html` in a modern web browser. No build tools or dependencies a
 - Each release remains playable at `/versions/vN/`. The version-history page links to all retained releases.
 - The existing live game is retained as `v1` when the archive mechanism is first initialised.
 - Deployments assemble the production root, current UAT candidate and all release archives into one complete GitHub Pages artifact. Publishing one environment must not overwrite the others.
+- The build is dispatched to a publisher workflow on `main` so the GitHub Pages deployment runs from the Pages-authorised branch; the publisher re-registers the complete artifact before deployment.
 - To roll back, open a pull request from the desired historical release source into `main` following the repository's release procedure; do not delete or overwrite the archived version.
 
 The workflow is `.github/workflows/deploy-pages.yml`. GitHub Actions uses Node 24-compatible action versions.
