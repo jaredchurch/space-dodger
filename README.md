@@ -5,10 +5,13 @@ Samuel's first space-themed vertical-scrolling game.
 ## First playable version
 
 - Steer the ship with the arrow keys (WASD also works).
+- Press **P** or **Escape**, or use the on-screen button, to pause and resume. The game and its timers freeze while paused; switching away from the browser tab also pauses it.
 - Dodge falling asteroids. The game gets faster and busier over time.
-- Start with five lives. A collision costs one life and gives the ship two seconds of flashing collision protection.
+- Start with five lives. A collision costs one life and gives the ship two seconds of flashing collision protection; the asteroid bursts on impact.
+- When the final life is lost, the ship explodes before the game-over screen appears.
 - Collect gold coins for bonus points.
-- Collect a green shield for 20 seconds of invincibility.
+- Collect a green shield for 20 seconds of invincibility, with a visible countdown.
+- Type **GODMODE** during a run for 100× points and invincibility until that run ends.
 - See your final score and coins when the game ends, then play again.
 - Your best score is saved in this browser.
 
