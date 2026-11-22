@@ -1,0 +1,39 @@
+name: Publish complete site to GitHub Pages
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Successful build workflow run containing the github-pages artifact"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download complete site artifact from build run
+        uses: actions/download-artifact@v5
+        with:
+          name: github-pages
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.run_id }}
+
+      - name: Deploy complete site to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
