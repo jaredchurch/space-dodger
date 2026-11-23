@@ -40,4 +40,6 @@ The workflow is `.github/workflows/deploy-pages.yml`. GitHub Actions uses Node 2
 
 ## Next ideas
 
-- Ship upgrades and the cheat code are not in this first playable version yet. They can be added in later iterations, ideally with Samuel helping choose and build the features.
+- **Ship upgrades:** Add upgrades to the player's ship in a later iteration, with Samuel helping choose and build the features.
+- **Additional hazards:** Introduce enemy ships and other space hazards that the player must dodge.
+- **Game music and sound effects:** Add background music and sound effects for key game events, such as collecting coins, activating power-ups, collisions and losing a life. Include simple controls to mute or adjust the audio.
