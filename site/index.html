@@ -25,6 +25,15 @@
     button:hover { background:#a1e8ff; transform:translateY(-1px); }
     .game-controls { display:flex; justify-content:center; margin:9px auto 0; min-height:42px; }
     .game-controls button { padding:9px 20px; font-size:.9rem; }
+    .power-settings { max-width:480px; margin:12px auto 0; padding:14px; text-align:left; border:1px solid #315a7d; border-radius:12px; background:#0a1c30; }
+    .power-settings h2 { margin:0 0 5px; font-size:1rem; letter-spacing:.08em; }
+    .power-settings > p { margin:0 0 12px; color:#a9bfd8; font-size:.8rem; }
+    .power-setting { display:grid; grid-template-columns: minmax(100px,1fr) minmax(110px,1.5fr) 42px; align-items:center; gap:9px; margin:9px 0; font-size:.85rem; }
+    .power-setting input { width:100%; accent-color:#69d6ff; }
+    .power-setting output { text-align:right; font-variant-numeric:tabular-nums; }
+    .settings-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
+    .settings-actions button { padding:7px 13px; font-size:.8rem; }
+    #power-settings-panel[hidden] { display:none; }
     .help { margin:12px auto 0; max-width:480px; color:#a9bfd8; font-size:.9rem; line-height:1.5; }
     .hidden { display:none; }
     .power { color:#8fffd0; }
@@ -50,6 +59,17 @@
     </section>
   </div>
   <div class="game-controls"><button id="pause-button" class="hidden" type="button">Pause</button></div>
+  <section class="power-settings">
+    <button id="settings-toggle" type="button" aria-expanded="false" aria-controls="power-settings-panel">UAT power-up settings</button>
+    <div id="power-settings-panel" hidden>
+      <h2>POWER-UP SPAWN FREQUENCY</h2>
+      <p>Adjust each power-up's relative frequency. Set a value to 0 to disable it. Changes are saved on this device.</p>
+      <label class="power-setting" for="shield-frequency"><span>Shield</span><input id="shield-frequency" type="range" min="0" max="100" step="5"><output id="shield-frequency-value" for="shield-frequency"></output></label>
+      <label class="power-setting" for="magnet-frequency"><span>Magnet</span><input id="magnet-frequency" type="range" min="0" max="100" step="5"><output id="magnet-frequency-value" for="magnet-frequency"></output></label>
+      <label class="power-setting" for="transmute-frequency"><span>Asteroid converter</span><input id="transmute-frequency" type="range" min="0" max="100" step="5"><output id="transmute-frequency-value" for="transmute-frequency"></output></label>
+      <div class="settings-actions"><button id="reset-power-settings" type="button">Reset defaults</button></div>
+    </div>
+  </section>
   <p class="help">Controls: ← → move · ↑ ↓ also work · P or Esc to pause/resume. Green shields grant 20 seconds of invincibility. Blue magnets pull coins towards you for 10 seconds; orange converters turn asteroids into coins for 8 seconds. Pink high-value coins are worth five coins. After a hit, your ship flashes for 2 seconds.</p>
 </main>
 <script>
@@ -65,6 +85,30 @@
   let obstacleTimer = 0, coinTimer = 0, powerTimer = 0, obstacles = [], pickups = [], stars = [];
   const scoreScope = document.querySelector('meta[name="space-dodger-score-scope"]')?.content || 'unknown';
   const bestScoreKey = 'spaceDodgerBest:' + scoreScope;
+  const defaultPowerRates = {shield:100, magnet:100, transmute:100};
+  const powerRatesKey = 'spaceDodgerPowerRates:' + scoreScope;
+  let powerRates = {...defaultPowerRates};
+  try { powerRates = {...defaultPowerRates, ...JSON.parse(localStorage.getItem(powerRatesKey) || '{}')}; } catch {}
+  const powerRateIds = ['shield','magnet','transmute'];
+  function savePowerRates() { localStorage.setItem(powerRatesKey, JSON.stringify(powerRates)); }
+  function syncPowerRateControls() {
+    powerRateIds.forEach(type => {
+      const input=$(type+'-frequency'), output=$(type+'-frequency-value');
+      input.value=powerRates[type]; output.textContent=powerRates[type]+'%';
+    });
+  }
+  $('settings-toggle').addEventListener('click',()=>{
+    const panel=$('power-settings-panel'), opening=panel.hidden;
+    panel.hidden=!opening;
+    $('settings-toggle').setAttribute('aria-expanded',String(opening));
+  });
+  powerRateIds.forEach(type=>$ (type+'-frequency').addEventListener('input',e=>{
+    powerRates[type]=Number(e.target.value); $(type+'-frequency-value').textContent=powerRates[type]+'%'; savePowerRates();
+  }));
+  $('reset-power-settings').addEventListener('click',()=>{
+    powerRates={...defaultPowerRates}; syncPowerRateControls(); savePowerRates();
+  });
+  syncPowerRateControls();
   let hitUntil = 0, shieldUntil = 0, magnetUntil = 0, transmuteUntil = 0, best = Number(localStorage.getItem(bestScoreKey) || 0);
   const cheatCode = 'GODMODE';
   const player = { x: W/2, y: H-100, w: 38, h: 48, speed: 310 };
@@ -180,8 +224,14 @@
   }
   function spawnCoin() { spawnCoinAt(24+Math.random()*(W-48),-18,Math.random()<.12); }
   function spawnPowerUp() {
-    const types=['shield','magnet','transmute'];
-    const type=types[Math.floor(Math.random()*types.length)];
+    const available=powerRateIds.filter(type=>powerRates[type]>0);
+    const total=available.reduce((sum,type)=>sum+powerRates[type],0);
+    if(!total) return;
+    let roll=Math.random()*total, type=available[available.length-1];
+    for(const candidate of available) {
+      roll-=powerRates[candidate];
+      if(roll<0){type=candidate;break;}
+    }
     pickups.push({type,x:28+Math.random()*(W-56),y:-20,r:15,speed:150+elapsed*2});
   }
   function activateTransmute() {
@@ -219,7 +269,7 @@
           // Active magnet: every coin currently in play homes directly to the ship,
           // regardless of distance. Its speed comfortably exceeds the ship's top speed.
           const mx=player.x-p.x,my=player.y-p.y,dist=Math.hypot(mx,my);
-          if(dist>1){const travel=Math.min(dist,1100*dt);p.x+=mx/dist*travel;p.y+=my/dist*travel;}
+          if(dist>1){const travel=Math.min(dist,520*dt);p.x+=mx/dist*travel;p.y+=my/dist*travel;}
         }
       }
     });
