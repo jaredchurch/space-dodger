@@ -268,7 +268,19 @@
     pickups.forEach(p=>{
       ctx.save();ctx.translate(p.x,p.y);
       if(p.type==='coin'||p.type==='highCoin'){
-        ctx.rotate(Math.sin(p.phase)*.18);ctx.fillStyle=p.type==='highCoin'?'#ff8be8':'#ffd45c';ctx.strokeStyle=p.type==='highCoin'?'#ffd0f5':'#fff0a8';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,p.r,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#55305d';ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(p.type==='highCoin'?'5':'
+        ctx.rotate(Math.sin(p.phase)*.18);
+        ctx.fillStyle=p.type==='highCoin'?'#ff8be8':'#ffd45c';
+        ctx.strokeStyle=p.type==='highCoin'?'#ffd0f5':'#fff0a8';
+        ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,p.r,0,Math.PI*2);ctx.fill();ctx.stroke();
+        ctx.fillStyle='#55305d';ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+        ctx.fillText(p.type==='highCoin'?'5':'$',0,1);
+      } else {
+        const colour=p.type==='magnet'?'#78baff':p.type==='transmute'?'#ff9b6b':'#7affc8';
+        const letter=p.type==='magnet'?'M':p.type==='transmute'?'A':'S';
+        ctx.strokeStyle=colour;ctx.lineWidth=4;ctx.shadowColor=colour;ctx.shadowBlur=18;
+        ctx.beginPath();ctx.arc(0,0,p.r,0,Math.PI*2);ctx.stroke();
+        ctx.fillStyle='#e5f4ff';ctx.font='bold 17px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(letter,0,1);
+      }
       ctx.restore();
     });
     if(state!=='exploding') drawShip();
@@ -278,33 +290,6 @@
     if(elapsed<magnetUntil)active.push('MAGNET · '+Math.ceil(magnetUntil-elapsed)+'s');
     if(elapsed<transmuteUntil)active.push('ASTEROIDS → COINS · '+Math.ceil(transmuteUntil-elapsed)+'s');
     if(active.length){ctx.fillStyle='#b8f3ff';ctx.font='bold 14px sans-serif';ctx.textAlign='center';active.forEach((label,i)=>ctx.fillText(label,W/2,25+i*19));}
-    particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life/p.maxLife);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;});
-  }
-  function loop(now) {
-    if(state!=='playing'&&state!=='exploding')return;
-    const dt=Math.min((now-lastTime)/1000,.033);lastTime=now;
-    if(state==='playing') update(dt);
-    if(state==='exploding') {
-      explosionTimer+=dt;
-      if(explosionTimer>=.9) finishGameOver();
-    }
-    updateEffects(dt);draw();
-    if(state==='playing'||state==='exploding')requestAnimationFrame(loop);
-  }
-  draw();
-})();
-</script>
-</body>
-</html>,0,1);
-      } else {
-        const colour=p.type==='magnet'?'#78baff':p.type==='transmute'?'#ff9b6b':'#7affc8';
-        const letter=p.type==='magnet'?'M':p.type==='transmute'?'A':'S';
-        ctx.strokeStyle=colour;ctx.lineWidth=4;ctx.shadowColor=colour;ctx.shadowBlur=18;ctx.beginPath();ctx.arc(0,0,p.r,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#e5f4ff';ctx.font='bold 17px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(letter,0,1);
-      }
-      ctx.restore();
-    });
-    if(state!=='exploding') drawShip();
-    if(elapsed<shieldUntil||cheatActive){ctx.fillStyle=cheatActive?'#ffd36b':'#8dffce';ctx.font='bold 15px sans-serif';ctx.textAlign='center';ctx.fillText(cheatActive?'CHEAT MODE · 100× SCORE':'INVINCIBLE · '+Math.ceil(Math.max(0,shieldUntil-elapsed))+'s',W/2,28);}
     particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life/p.maxLife);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;});
   }
   function loop(now) {
