@@ -118,7 +118,8 @@ jobs:
             echo '<p>Every production release remains available to play.</p><ul>'
             while IFS= read -r tag; do
               [[ "$tag" =~ ^v[0-9]+$ ]] || continue
-              printf '<li><a href="./%s/">%s</a></li>\n' "$tag" "$tag"
+              test -f "dist/versions/$tag/index.html"
+              printf '<li><a href="./%s/index.html">%s</a></li>\n' "$tag" "$tag"
             done < <(git -C main-source tag --list 'v[0-9]*' --sort=-version:refname)
             echo '</ul><p><a href="../">Back to the current game</a></p></body></html>'
           } > dist/versions/index.html
