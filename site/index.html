@@ -65,7 +65,7 @@
   </div>
       <div class="game-controls"><button id="pause-button" class="hidden" type="button">Pause</button></div>
     </div>
-    <section class="power-settings" aria-label="UAT power-up settings">
+    <section class="power-settings" id="power-settings-section" aria-label="UAT power-up settings">
       <h2>UAT POWER-UP SETTINGS</h2>
       <p>Set each power-up spawn weight from 0% (off) to 300%. Higher values make that power-up more likely relative to the others. Changes are saved on this device.</p>
       <label class="power-setting" for="shield-frequency"><span>Shield</span><input id="shield-frequency" type="range" min="0" max="300" step="10"><output id="shield-frequency-value" for="shield-frequency"></output></label>
@@ -108,6 +108,9 @@
     powerRates={...defaultPowerRates}; syncPowerRateControls(); savePowerRates();
   });
   syncPowerRateControls();
+  // The frequency editor is strictly a UAT-only control. Production builds
+  // receive a version score scope during release assembly.
+  $('power-settings-section').hidden = scoreScope !== 'uat';
   let hitUntil = 0, shieldUntil = 0, magnetUntil = 0, transmuteUntil = 0, best = Number(localStorage.getItem(bestScoreKey) || 0);
   const cheatCode = 'GODMODE';
   const player = { x: W/2, y: H-100, w: 38, h: 48, speed: 310 };
