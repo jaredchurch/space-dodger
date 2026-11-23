@@ -27,4 +27,8 @@ Every push to `main` deploys the contents of `site/` to GitHub Pages using `.git
 ## Next ideas
 
 - **Version history requirement:** Every released version of Space Dodger must remain available on the site. The approach for retaining and accessing previous releases is not yet decided; leave the implementation design for a later discussion.
-- Ship upgrades and the cheat code are not in this first playable version yet. They can be added in later iterations, ideally with Samuel helping choose and build the features.
+- **Ship upgrades:** Add upgrades to the player's ship in a later iteration, with Samuel helping choose and build the features.
+- **Cheat code:** Add a cheat code in a later iteration; its effect and activation sequence are still to be decided.
+- **Coin magnet power-up:** Add a temporary power-up that attracts nearby coins towards the player's ship, making them easier to collect.
+- **Asteroid-to-coin power-up:** Add a power-up that temporarily turns asteroids into coins for a fixed period.
+- **Occasional high-value coins:** Introduce special coins that appear occasionally and are worth more points than regular coins.
