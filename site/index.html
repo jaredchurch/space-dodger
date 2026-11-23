@@ -48,6 +48,7 @@
 <main>
   <h1>SPACE DODGER</h1>
   <p class="tagline">Dodge asteroids. Collect coins. Stay alive.</p>
+  <button id="layout-preview-button" type="button" hidden style="margin:0 auto 12px">Preview production layout</button>
   <div class="game-layout" id="game-layout">
     <div class="game-column">
       <div class="hud" aria-live="polite">
@@ -113,6 +114,18 @@
   // receive a version score scope during release assembly.
   $('power-settings-section').hidden = scoreScope !== 'uat';
   $('game-layout')?.classList.toggle('production-layout', scoreScope !== 'uat');
+  // UAT-only preview lets us verify the production layout without releasing.
+  const layoutPreviewButton = $('layout-preview-button');
+  if (scoreScope === 'uat') {
+    layoutPreviewButton.hidden = false;
+    layoutPreviewButton.addEventListener('click', () => {
+      const previewActive = !layoutPreviewButton.dataset.active;
+      layoutPreviewButton.dataset.active = previewActive ? 'true' : '';
+      $('game-layout').classList.toggle('production-layout', previewActive);
+      $('power-settings-section').hidden = previewActive;
+      layoutPreviewButton.textContent = previewActive ? 'Exit production preview' : 'Preview production layout';
+    });
+  }
   let hitUntil = 0, shieldUntil = 0, magnetUntil = 0, transmuteUntil = 0, best = Number(localStorage.getItem(bestScoreKey) || 0);
   const cheatCode = 'GODMODE';
   const player = { x: W/2, y: H-100, w: 38, h: 48, speed: 310 };
