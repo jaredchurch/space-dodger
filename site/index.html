@@ -216,8 +216,10 @@
       if(p.type==='coin'||p.type==='highCoin') {
         p.phase+=dt*5;
         if(elapsed<magnetUntil) {
+          // Active magnet: every coin currently in play homes directly to the ship,
+          // regardless of distance. Its speed comfortably exceeds the ship's top speed.
           const mx=player.x-p.x,my=player.y-p.y,dist=Math.hypot(mx,my);
-          if(dist<310&&dist>1){const pull=Math.min(1,dt*7);const force=520*(1-dist/340);p.x+=mx/dist*force*dt*pull;p.y+=my/dist*force*dt*pull;}
+          if(dist>1){const travel=Math.min(dist,1100*dt);p.x+=mx/dist*travel;p.y+=my/dist*travel;}
         }
       }
     });
@@ -300,7 +302,7 @@
     const active=[];
     if(elapsed<magnetUntil) {
       ctx.save();ctx.translate(player.x,player.y);ctx.strokeStyle='rgba(105,190,255,.28)';ctx.lineWidth=2;ctx.setLineDash([7,9]);
-      ctx.beginPath();ctx.arc(0,0,305,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
+      ctx.beginPath();ctx.arc(0,0,900,0,Math.PI*2);ctx.stroke();ctx.setLineDash([]);
       ctx.strokeStyle='rgba(125,210,255,.5)';ctx.beginPath();ctx.arc(0,0,42+Math.sin(elapsed*8)*4,0,Math.PI*2);ctx.stroke();ctx.restore();
     }
     if(cheatActive)active.push('CHEAT · 100×');
