@@ -33,3 +33,4 @@ Every push to `main` deploys the contents of `site/` to GitHub Pages using `.git
 - **Asteroid-to-coin power-up:** Add a power-up that temporarily turns asteroids into coins for a fixed period.
 - **Occasional high-value coins:** Introduce special coins that appear occasionally and are worth more points than regular coins.
 - **Additional hazards:** Introduce enemy ships and other space hazards that the player must dodge.
+- **Game music and sound effects:** Add background music and sound effects for key game events, such as collecting coins, activating power-ups, collisions and losing a life. Include simple controls to mute or adjust the audio.
