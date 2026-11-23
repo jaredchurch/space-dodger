@@ -10,7 +10,7 @@
     :root { color-scheme: dark; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     * { box-sizing: border-box; }
     body { min-height:100vh; margin:0; padding:18px; display:grid; place-items:center; color:#eef6ff; background:radial-gradient(ellipse at 50% 8%,#193b61 0,#0a1b30 48%,#040912 100%); }
-    main { width:min(100%,560px); text-align:center; }
+    main { width:min(100%,850px); text-align:center; }
     h1 { margin:0 0 5px; font-size:clamp(1.7rem,6vw,2.5rem); letter-spacing:.12em; }
     .tagline { margin:0 0 14px; color:#a9bfd8; }
     .hud { display:flex; justify-content:space-between; gap:8px; margin:0 auto 9px; max-width:480px; font-weight:700; font-size:.95rem; }
@@ -25,7 +25,9 @@
     button:hover { background:#a1e8ff; transform:translateY(-1px); }
     .game-controls { display:flex; justify-content:center; margin:9px auto 0; min-height:42px; }
     .game-controls button { padding:9px 20px; font-size:.9rem; }
-    .power-settings { max-width:480px; margin:12px auto 0; padding:14px; text-align:left; border:1px solid #315a7d; border-radius:12px; background:#0a1c30; }
+    .game-layout { display:grid; grid-template-columns:minmax(0,480px) minmax(270px,1fr); gap:16px; align-items:start; }
+    .game-column { min-width:0; }
+    .power-settings { min-width:0; margin:0; padding:16px; text-align:left; border:1px solid #315a7d; border-radius:12px; background:#0a1c30; }
     .power-settings h2 { margin:0 0 5px; font-size:1rem; letter-spacing:.08em; }
     .power-settings > p { margin:0 0 12px; color:#a9bfd8; font-size:.8rem; }
     .power-setting { display:grid; grid-template-columns: minmax(100px,1fr) minmax(110px,1.5fr) 42px; align-items:center; gap:9px; margin:9px 0; font-size:.85rem; }
@@ -34,7 +36,8 @@
     .settings-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
     .settings-actions button { padding:7px 13px; font-size:.8rem; }
     #power-settings-panel[hidden] { display:none; }
-    .help { margin:12px auto 0; max-width:480px; color:#a9bfd8; font-size:.9rem; line-height:1.5; }
+    .help { margin:12px auto 0; max-width:760px; color:#a9bfd8; font-size:.9rem; line-height:1.5; }
+    @media (max-width:760px) { .game-layout { grid-template-columns:minmax(0,480px); justify-content:center; } .power-settings { margin-top:12px; } }
     .hidden { display:none; }
     .power { color:#8fffd0; }
     @media (max-width:420px) { body{padding:10px} .hud{font-size:.8rem}.hud span{padding:6px 7px} }
@@ -44,10 +47,12 @@
 <main>
   <h1>SPACE DODGER</h1>
   <p class="tagline">Dodge asteroids. Collect coins. Stay alive.</p>
-  <div class="hud" aria-live="polite">
-    <span id="score">Score: 0</span><span id="lives">Lives: 5</span><span id="coins">Coins: 0</span>
-  </div>
-  <div class="game-wrap">
+  <div class="game-layout">
+    <div class="game-column">
+      <div class="hud" aria-live="polite">
+        <span id="score">Score: 0</span><span id="lives">Lives: 5</span><span id="coins">Coins: 0</span>
+      </div>
+      <div class="game-wrap">
     <canvas id="game" width="480" height="720" aria-label="Space Dodger game area"></canvas>
     <section class="overlay" id="overlay">
       <div class="panel">
@@ -58,18 +63,17 @@
       </div>
     </section>
   </div>
-  <div class="game-controls"><button id="pause-button" class="hidden" type="button">Pause</button></div>
-  <section class="power-settings">
-    <button id="settings-toggle" type="button" aria-expanded="false" aria-controls="power-settings-panel">UAT power-up settings</button>
-    <div id="power-settings-panel" hidden>
-      <h2>POWER-UP SPAWN FREQUENCY</h2>
-      <p>Adjust each power-up's relative frequency. Set a value to 0 to disable it. Changes are saved on this device.</p>
-      <label class="power-setting" for="shield-frequency"><span>Shield</span><input id="shield-frequency" type="range" min="0" max="100" step="5"><output id="shield-frequency-value" for="shield-frequency"></output></label>
-      <label class="power-setting" for="magnet-frequency"><span>Magnet</span><input id="magnet-frequency" type="range" min="0" max="100" step="5"><output id="magnet-frequency-value" for="magnet-frequency"></output></label>
-      <label class="power-setting" for="transmute-frequency"><span>Asteroid converter</span><input id="transmute-frequency" type="range" min="0" max="100" step="5"><output id="transmute-frequency-value" for="transmute-frequency"></output></label>
-      <div class="settings-actions"><button id="reset-power-settings" type="button">Reset defaults</button></div>
+      <div class="game-controls"><button id="pause-button" class="hidden" type="button">Pause</button></div>
     </div>
-  </section>
+    <section class="power-settings" aria-label="UAT power-up settings">
+      <h2>UAT POWER-UP SETTINGS</h2>
+      <p>Set each power-up spawn weight from 0% (off) to 300%. Higher values make that power-up more likely relative to the others. Changes are saved on this device.</p>
+      <label class="power-setting" for="shield-frequency"><span>Shield</span><input id="shield-frequency" type="range" min="0" max="300" step="10"><output id="shield-frequency-value" for="shield-frequency"></output></label>
+      <label class="power-setting" for="magnet-frequency"><span>Magnet</span><input id="magnet-frequency" type="range" min="0" max="300" step="10"><output id="magnet-frequency-value" for="magnet-frequency"></output></label>
+      <label class="power-setting" for="transmute-frequency"><span>Asteroid converter</span><input id="transmute-frequency" type="range" min="0" max="300" step="10"><output id="transmute-frequency-value" for="transmute-frequency"></output></label>
+      <div class="settings-actions"><button id="reset-power-settings" type="button">Reset defaults</button></div>
+    </section>
+  </div>
   <p class="help">Controls: ← → move · ↑ ↓ also work · P or Esc to pause/resume. Green shields grant 20 seconds of invincibility. Blue magnets pull coins towards you for 10 seconds; orange converters turn asteroids into coins for 8 seconds. Pink high-value coins are worth five coins. After a hit, your ship flashes for 2 seconds.</p>
 </main>
 <script>
@@ -97,11 +101,6 @@
       input.value=powerRates[type]; output.textContent=powerRates[type]+'%';
     });
   }
-  $('settings-toggle').addEventListener('click',()=>{
-    const panel=$('power-settings-panel'), opening=panel.hidden;
-    panel.hidden=!opening;
-    $('settings-toggle').setAttribute('aria-expanded',String(opening));
-  });
   powerRateIds.forEach(type=>$ (type+'-frequency').addEventListener('input',e=>{
     powerRates[type]=Number(e.target.value); $(type+'-frequency-value').textContent=powerRates[type]+'%'; savePowerRates();
   }));
@@ -269,7 +268,7 @@
           // Active magnet: every coin currently in play homes directly to the ship,
           // regardless of distance. Its speed comfortably exceeds the ship's top speed.
           const mx=player.x-p.x,my=player.y-p.y,dist=Math.hypot(mx,my);
-          if(dist>1){const travel=Math.min(dist,700*dt);p.x+=mx/dist*travel;p.y+=my/dist*travel;}
+          if(dist>1){const travel=Math.min(dist,520*dt);p.x+=mx/dist*travel;p.y+=my/dist*travel;}
         }
       }
     });
