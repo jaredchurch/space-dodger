@@ -50,7 +50,7 @@
     </section>
   </div>
   <div class="game-controls"><button id="pause-button" class="hidden" type="button">Pause</button></div>
-  <p class="help">Controls: ← → move · ↑ ↓ also work · P or Esc to pause/resume. Green shields grant 20 seconds of invincibility. After a hit, your ship flashes for 2 seconds.</p>
+  <p class="help">Controls: ← → move · ↑ ↓ also work · P or Esc to pause/resume. Green shields grant 20 seconds of invincibility. Blue magnets pull coins towards you for 10 seconds; orange converters turn asteroids into coins for 8 seconds. Pink high-value coins are worth five coins. After a hit, your ship flashes for 2 seconds.</p>
 </main>
 <script>
 (() => {
@@ -65,7 +65,7 @@
   let obstacleTimer = 0, coinTimer = 0, powerTimer = 0, obstacles = [], pickups = [], stars = [];
   const scoreScope = document.querySelector('meta[name="space-dodger-score-scope"]')?.content || 'unknown';
   const bestScoreKey = 'spaceDodgerBest:' + scoreScope;
-  let hitUntil = 0, shieldUntil = 0, best = Number(localStorage.getItem(bestScoreKey) || 0);
+  let hitUntil = 0, shieldUntil = 0, magnetUntil = 0, transmuteUntil = 0, best = Number(localStorage.getItem(bestScoreKey) || 0);
   const cheatCode = 'GODMODE';
   const player = { x: W/2, y: H-100, w: 38, h: 48, speed: 310 };
   $('best-copy').textContent = 'Best score: ' + best;
@@ -74,7 +74,7 @@
 
   function reset() {
     score=0; coins=0; lives=5; elapsed=0; obstacleTimer=.5; coinTimer=1.1; powerTimer=8;
-    obstacles=[]; pickups=[]; particles=[]; player.x=W/2; player.y=H-100; hitUntil=0; shieldUntil=0;
+    obstacles=[]; pickups=[]; particles=[]; player.x=W/2; player.y=H-100; hitUntil=0; shieldUntil=0; magnetUntil=0; transmuteUntil=0;
     cheatActive=false; cheatProgress=0; explosionTimer=0;
     $('pause-button').classList.add('hidden');
     updateHud();
@@ -157,12 +157,25 @@
   window.addEventListener('keyup',e=>keys.delete(e.key));
   window.addEventListener('blur',()=>{keys.clear();if(state==='playing')pauseGame();});
 
-  function spawnRock() {
-    const r=17+Math.random()*23;
-    obstacles.push({x:r+Math.random()*(W-2*r),y:-r,r,rot:Math.random()*6.28,spin:(Math.random()-.5)*2.4,speed:165+Math.random()*75+elapsed*4});
+  function spawnCoinAt(x,y,highValue=false) {
+    pickups.push({type:highValue?'highCoin':'coin',x,y,r:highValue?14:11,speed:175+elapsed*3,phase:Math.random()*6,value:highValue?5:1});
   }
-  function spawnCoin() { pickups.push({type:'coin',x:24+Math.random()*(W-48),y:-18,r:11,speed:175+elapsed*3,phase:Math.random()*6}); }
-  function spawnShield() { pickups.push({type:'shield',x:28+Math.random()*(W-56),y:-20,r:15,speed:150+elapsed*2}); }
+  function spawnRock() {
+    const r=17+Math.random()*23, x=r+Math.random()*(W-2*r);
+    if(elapsed<transmuteUntil){spawnCoinAt(x,-r);return;}
+    obstacles.push({x,y:-r,r,rot:Math.random()*6.28,spin:(Math.random()-.5)*2.4,speed:165+Math.random()*75+elapsed*4});
+  }
+  function spawnCoin() { spawnCoinAt(24+Math.random()*(W-48),-18,Math.random()<.12); }
+  function spawnPowerUp() {
+    const types=['shield','magnet','transmute'];
+    const type=types[Math.floor(Math.random()*types.length)];
+    pickups.push({type,x:28+Math.random()*(W-56),y:-20,r:15,speed:150+elapsed*2});
+  }
+  function activateTransmute() {
+    transmuteUntil=elapsed+8;
+    obstacles.forEach(o=>spawnCoinAt(o.x,o.y));
+    obstacles=[];
+  }
 
   function circleRect(cx,cy,r,rect) {
     const x=Math.max(rect.x-rect.w/2,Math.min(cx,rect.x+rect.w/2));
@@ -181,11 +194,20 @@
     const rockInterval=Math.max(.38,1.15-elapsed*.009);
     if(obstacleTimer<=0){spawnRock();obstacleTimer=rockInterval*(.75+Math.random()*.5);}
     if(coinTimer<=0){spawnCoin();coinTimer=1.25+Math.random()*1.15;}
-    if(powerTimer<=0){spawnShield();powerTimer=17+Math.random()*9;}
+    if(powerTimer<=0){spawnPowerUp();powerTimer=17+Math.random()*9;}
 
     stars.forEach(s=>{s.y+=s.s*dt*(1+elapsed*.012);if(s.y>H){s.y=0;s.x=Math.random()*W;}});
     obstacles.forEach(o=>{o.y+=o.speed*dt;o.rot+=o.spin*dt;});
-    pickups.forEach(p=>{p.y+=p.speed*dt;if(p.type==='coin')p.phase+=dt*5;});
+    pickups.forEach(p=>{
+      p.y+=p.speed*dt;
+      if(p.type==='coin'||p.type==='highCoin') {
+        p.phase+=dt*5;
+        if(elapsed<magnetUntil) {
+          const mx=player.x-p.x,my=player.y-p.y,dist=Math.hypot(mx,my);
+          if(dist<210&&dist>1){const pull=Math.min(1,dt*5.5);p.x+=mx/dist*300*dt*pull;p.y+=my/dist*300*dt*pull;}
+        }
+      }
+    });
     obstacles=obstacles.filter(o=>o.y<H+o.r&&!o.destroyed);
     pickups=pickups.filter(p=>p.y<H+30);
 
@@ -208,7 +230,10 @@
     for(const p of pickups) {
       if(!p.taken&&circleRect(p.x,p.y,p.r,{...player,w:player.w,h:player.h})) {
         p.taken=true;
-        if(p.type==='coin'){coins++;awardPoints(25);} else {shieldUntil=elapsed+20;}
+        if(p.type==='coin'||p.type==='highCoin'){coins+=p.value||1;awardPoints(25*(p.value||1));}
+        else if(p.type==='shield'){shieldUntil=elapsed+20;}
+        else if(p.type==='magnet'){magnetUntil=elapsed+10;}
+        else if(p.type==='transmute'){activateTransmute();}
         updateHud();
       }
     }
@@ -242,8 +267,40 @@
     obstacles.forEach(drawRock);
     pickups.forEach(p=>{
       ctx.save();ctx.translate(p.x,p.y);
-      if(p.type==='coin'){ctx.rotate(Math.sin(p.phase)*.18);ctx.fillStyle='#ffd45c';ctx.strokeStyle='#fff0a8';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,p.r,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#9b6510';ctx.font='bold 13px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('$',0,1);}
-      else{ctx.strokeStyle='#7affc8';ctx.lineWidth=4;ctx.shadowColor='#4dffc0';ctx.shadowBlur=18;ctx.beginPath();ctx.arc(0,0,p.r,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#b4ffe1';ctx.font='bold 17px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('S',0,1);}
+      if(p.type==='coin'||p.type==='highCoin'){
+        ctx.rotate(Math.sin(p.phase)*.18);ctx.fillStyle=p.type==='highCoin'?'#ff8be8':'#ffd45c';ctx.strokeStyle=p.type==='highCoin'?'#ffd0f5':'#fff0a8';ctx.lineWidth=3;ctx.beginPath();ctx.arc(0,0,p.r,0,Math.PI*2);ctx.fill();ctx.stroke();ctx.fillStyle='#55305d';ctx.font='bold 12px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(p.type==='highCoin'?'5':'
+      ctx.restore();
+    });
+    if(state!=='exploding') drawShip();
+    const active=[];
+    if(cheatActive)active.push('CHEAT · 100×');
+    else if(elapsed<shieldUntil)active.push('SHIELD · '+Math.ceil(shieldUntil-elapsed)+'s');
+    if(elapsed<magnetUntil)active.push('MAGNET · '+Math.ceil(magnetUntil-elapsed)+'s');
+    if(elapsed<transmuteUntil)active.push('ASTEROIDS → COINS · '+Math.ceil(transmuteUntil-elapsed)+'s');
+    if(active.length){ctx.fillStyle='#b8f3ff';ctx.font='bold 14px sans-serif';ctx.textAlign='center';active.forEach((label,i)=>ctx.fillText(label,W/2,25+i*19));}
+    particles.forEach(p=>{ctx.globalAlpha=Math.max(0,p.life/p.maxLife);ctx.fillStyle=p.color;ctx.beginPath();ctx.arc(p.x,p.y,p.size,0,Math.PI*2);ctx.fill();ctx.globalAlpha=1;});
+  }
+  function loop(now) {
+    if(state!=='playing'&&state!=='exploding')return;
+    const dt=Math.min((now-lastTime)/1000,.033);lastTime=now;
+    if(state==='playing') update(dt);
+    if(state==='exploding') {
+      explosionTimer+=dt;
+      if(explosionTimer>=.9) finishGameOver();
+    }
+    updateEffects(dt);draw();
+    if(state==='playing'||state==='exploding')requestAnimationFrame(loop);
+  }
+  draw();
+})();
+</script>
+</body>
+</html>,0,1);
+      } else {
+        const colour=p.type==='magnet'?'#78baff':p.type==='transmute'?'#ff9b6b':'#7affc8';
+        const letter=p.type==='magnet'?'M':p.type==='transmute'?'A':'S';
+        ctx.strokeStyle=colour;ctx.lineWidth=4;ctx.shadowColor=colour;ctx.shadowBlur=18;ctx.beginPath();ctx.arc(0,0,p.r,0,Math.PI*2);ctx.stroke();ctx.fillStyle='#e5f4ff';ctx.font='bold 17px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(letter,0,1);
+      }
       ctx.restore();
     });
     if(state!=='exploding') drawShip();
