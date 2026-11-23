@@ -261,12 +261,14 @@
     stars.forEach(s=>{s.y+=s.s*dt*(1+elapsed*.012);if(s.y>H){s.y=0;s.x=Math.random()*W;}});
     obstacles.forEach(o=>{o.y+=o.speed*dt;o.rot+=o.spin*dt;});
     pickups.forEach(p=>{
-      p.y+=p.speed*dt;
-      if(p.type==='coin'||p.type==='highCoin') {
+      const isCoin=p.type==='coin'||p.type==='highCoin';
+      const magnetActive=isCoin&&elapsed<magnetUntil;
+      if(!magnetActive) p.y+=p.speed*dt;
+      if(isCoin) {
         p.phase+=dt*5;
-        if(elapsed<magnetUntil) {
-          // Active magnet: every coin currently in play homes directly to the ship,
-          // regardless of distance. Its speed comfortably exceeds the ship's top speed.
+        if(magnetActive) {
+          // Pause normal coin drift while magnetised so homing stays faster than
+          // the ship even when it moves diagonally. Every active coin is collected.
           const mx=player.x-p.x,my=player.y-p.y,dist=Math.hypot(mx,my);
           if(dist>1){const travel=Math.min(dist,520*dt);p.x+=mx/dist*travel;p.y+=my/dist*travel;}
         }
