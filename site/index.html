@@ -77,6 +77,7 @@
       <h2 style="margin-top:18px">LEVEL DIFFICULTY</h2>
       <p class="setting-note">Increase asteroid speed and spawn pressure with each new level. The percentage compounds per level; for example, 10% makes level 2 about 1.10× and level 3 about 1.21× the base level scaling.</p>
       <label class="power-setting" for="level-speed-increase"><span>Speed increase / level</span><input id="level-speed-increase" type="range" min="0" max="50" step="1"><output id="level-speed-increase-value"></output></label>
+      <label class="power-setting" for="level-duration"><span>Level length</span><input id="level-duration" type="range" min="20" max="600" step="10"><output id="level-duration-value"></output></label>
       <label class="power-setting" for="shield-frequency"><span>Shield</span><input id="shield-frequency" type="range" min="0" max="300" step="10"><output id="shield-frequency-value" for="shield-frequency"></output></label>
       <label class="power-setting" for="magnet-frequency"><span>Magnet</span><input id="magnet-frequency" type="range" min="0" max="300" step="10"><output id="magnet-frequency-value" for="magnet-frequency"></output></label>
       <label class="power-setting" for="transmute-frequency"><span>Asteroid converter</span><input id="transmute-frequency" type="range" min="0" max="300" step="10"><output id="transmute-frequency-value" for="transmute-frequency"></output></label>
@@ -93,7 +94,8 @@
   const W = canvas.width, H = canvas.height;
   const keys = new Set();
   let state = 'ready', lastTime = 0, elapsed = 0, score = 0, coins = 0, lives = 5;
-  const LEVEL_DURATION = 60;
+  const DEFAULT_LEVEL_DURATION = 60;
+  let LEVEL_DURATION = DEFAULT_LEVEL_DURATION;
   let levelNumber = 1, highestCompletedLevel = 0;
   let cheatActive = false, cheatProgress = 0, explosionTimer = 0;
   let particles = [], shockwaves = [];
@@ -106,9 +108,13 @@
   const powerRatesKey = 'spaceDodgerPowerRates:' + scoreScope;
   const DEFAULT_LEVEL_SPEED_INCREASE = 10;
   const levelSpeedIncreaseKey = 'spaceDodgerLevelSpeedIncrease:' + scoreScope;
+  const levelDurationKey = 'spaceDodgerLevelDuration:' + scoreScope;
   let levelSpeedIncrease = DEFAULT_LEVEL_SPEED_INCREASE;
   if (scoreScope === 'uat') {
-    try { levelSpeedIncrease = Math.max(0, Math.min(50, Number(localStorage.getItem(levelSpeedIncreaseKey) ?? DEFAULT_LEVEL_SPEED_INCREASE))); } catch {}
+    try {
+      levelSpeedIncrease = Math.max(0, Math.min(50, Number(localStorage.getItem(levelSpeedIncreaseKey) ?? DEFAULT_LEVEL_SPEED_INCREASE)));
+      LEVEL_DURATION = Math.max(20, Math.min(600, Number(localStorage.getItem(levelDurationKey) ?? DEFAULT_LEVEL_DURATION)));
+    } catch {}
   }
   let powerRates = {...defaultPowerRates};
   try { powerRates = {...defaultPowerRates, ...JSON.parse(localStorage.getItem(powerRatesKey) || '{}')}; } catch {}
@@ -125,10 +131,28 @@
   }));
   $('reset-power-settings').addEventListener('click',()=>{
     powerRates={...defaultPowerRates}; syncPowerRateControls(); savePowerRates();
+    levelSpeedIncrease=DEFAULT_LEVEL_SPEED_INCREASE;
+    if(levelSpeedInput){levelSpeedInput.value=levelSpeedIncrease;levelSpeedOutput.textContent=levelSpeedIncrease+'%';}
+    LEVEL_DURATION=DEFAULT_LEVEL_DURATION;
+    if(levelDurationInput){levelDurationInput.value=LEVEL_DURATION;levelDurationOutput.textContent=LEVEL_DURATION+'s';}
+    try { localStorage.setItem(levelSpeedIncreaseKey,String(levelSpeedIncrease)); localStorage.setItem(levelDurationKey,String(LEVEL_DURATION)); } catch {}
+    updateHud();
   });
   syncPowerRateControls();
   const levelSpeedInput = $('level-speed-increase');
   const levelSpeedOutput = $('level-speed-increase-value');
+  const levelDurationInput = $('level-duration');
+  const levelDurationOutput = $('level-duration-value');
+  if (levelDurationInput && levelDurationOutput) {
+    levelDurationInput.value = LEVEL_DURATION;
+    levelDurationOutput.textContent = LEVEL_DURATION + 's';
+    levelDurationInput.addEventListener('input', e => {
+      LEVEL_DURATION = Math.max(20, Math.min(600, Number(e.target.value)));
+      levelDurationOutput.textContent = LEVEL_DURATION + 's';
+      try { localStorage.setItem(levelDurationKey, String(LEVEL_DURATION)); } catch {}
+      updateHud();
+    });
+  }
   if (levelSpeedInput && levelSpeedOutput) {
     levelSpeedInput.value = levelSpeedIncrease;
     levelSpeedOutput.textContent = levelSpeedIncrease + '%';
@@ -214,7 +238,7 @@
     try { localStorage.setItem(completedLevelKey,String(highestCompletedLevel)); } catch {}
     state='levelComplete';
     $('panel-title').textContent='Level '+levelNumber+' complete!';
-    $('panel-copy').textContent='Excellent flying! You survived the full minute. Take a breather, then continue from your latest completed progress, or replay any level you have already completed.';
+    $('panel-copy').textContent='Excellent flying! You survived the full '+LEVEL_DURATION+' seconds. Take a breather, then continue from your latest completed progress, or replay any level you have already completed.';
     refreshLevelPicker();
     $('start-button').textContent='Continue to Level '+(highestCompletedLevel+1);
     $('best-copy').textContent='Best score: '+best;
