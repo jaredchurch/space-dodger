@@ -38,8 +38,8 @@ Open `site/index.html` in a modern web browser. No build tools or dependencies a
 
 The workflow is `.github/workflows/deploy-pages.yml`. GitHub Actions uses Node 24-compatible action versions.
 
-## Next ideas
+## Backlog
 
-- **Ship upgrades:** Add upgrades to the player's ship in a later iteration, with Samuel helping choose and build the features.
-- **Additional hazards:** Introduce enemy ships and other space hazards that the player must dodge.
-- **Game music and sound effects:** Add background music and sound effects for key game events, such as collecting coins, activating power-ups, collisions and losing a life. Include simple controls to mute or adjust the audio.
+The GitHub Issues list is the **single source of truth for the complete project backlog**, including gameplay features and technical/platform work. Add, prioritise, and track all future work there; do not maintain a separate ideas list in this README.
+
+[View the complete Space Dodger backlog](https://github.com/jaredchurch/space-dodger/issues).
