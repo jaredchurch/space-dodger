@@ -75,8 +75,9 @@
       <h2>UAT POWER-UP SETTINGS</h2>
       <p>Set each power-up spawn weight from 0% (off) to 300%. Higher values make that power-up more likely relative to the others. Changes are saved on this device.</p>
       <h2 style="margin-top:18px">LEVEL DIFFICULTY</h2>
-      <p class="setting-note">Asteroids increase in speed by the selected percentage per level, compounded. Coins and power-ups travel at 95% of asteroid speed; for example, 10% gives asteroids a 1.10× multiplier at level 2 and 1.21× at level 3, with coins and power-ups always slightly slower.</p>
-      <label class="power-setting" for="level-speed-increase"><span>Speed increase / level</span><input id="level-speed-increase" type="range" min="0" max="50" step="1"><output id="level-speed-increase-value"></output></label>
+      <p class="setting-note">Speed and asteroid spawn frequency each increase by their selected percentage per level, compounded. Coins and power-ups travel at 95% of asteroid speed.</p>
+      <label class="power-setting" for="level-speed-increase"><span>Asteroid speed increase / level</span><input id="level-speed-increase" type="range" min="0" max="50" step="1"><output id="level-speed-increase-value"></output></label>
+      <label class="power-setting" for="level-frequency-increase"><span>Asteroid frequency increase / level</span><input id="level-frequency-increase" type="range" min="0" max="50" step="1"><output id="level-frequency-increase-value"></output></label>
       <label class="power-setting" for="level-duration"><span>Level length</span><input id="level-duration" type="range" min="20" max="600" step="10"><output id="level-duration-value"></output></label>
       <label class="power-setting" for="shield-frequency"><span>Shield</span><input id="shield-frequency" type="range" min="0" max="300" step="10"><output id="shield-frequency-value" for="shield-frequency"></output></label>
       <label class="power-setting" for="magnet-frequency"><span>Magnet</span><input id="magnet-frequency" type="range" min="0" max="300" step="10"><output id="magnet-frequency-value" for="magnet-frequency"></output></label>
@@ -107,12 +108,16 @@
   const defaultPowerRates = {shield:100, magnet:100, transmute:100};
   const powerRatesKey = 'spaceDodgerPowerRates:' + scoreScope;
   const DEFAULT_LEVEL_SPEED_INCREASE = 10;
+  const DEFAULT_LEVEL_FREQUENCY_INCREASE = 10;
   const levelSpeedIncreaseKey = 'spaceDodgerLevelSpeedIncrease:' + scoreScope;
+  const levelFrequencyIncreaseKey = 'spaceDodgerLevelFrequencyIncrease:' + scoreScope;
   const levelDurationKey = 'spaceDodgerLevelDuration:' + scoreScope;
   let levelSpeedIncrease = DEFAULT_LEVEL_SPEED_INCREASE;
+  let levelFrequencyIncrease = DEFAULT_LEVEL_FREQUENCY_INCREASE;
   if (scoreScope === 'uat') {
     try {
       levelSpeedIncrease = Math.max(0, Math.min(50, Number(localStorage.getItem(levelSpeedIncreaseKey) ?? DEFAULT_LEVEL_SPEED_INCREASE)));
+      levelFrequencyIncrease = Math.max(0, Math.min(50, Number(localStorage.getItem(levelFrequencyIncreaseKey) ?? DEFAULT_LEVEL_FREQUENCY_INCREASE)));
       LEVEL_DURATION = Math.max(20, Math.min(600, Number(localStorage.getItem(levelDurationKey) ?? DEFAULT_LEVEL_DURATION)));
     } catch {}
   }
@@ -133,14 +138,18 @@
     powerRates={...defaultPowerRates}; syncPowerRateControls(); savePowerRates();
     levelSpeedIncrease=DEFAULT_LEVEL_SPEED_INCREASE;
     if(levelSpeedInput){levelSpeedInput.value=levelSpeedIncrease;levelSpeedOutput.textContent=levelSpeedIncrease+'%';}
+    levelFrequencyIncrease=DEFAULT_LEVEL_FREQUENCY_INCREASE;
+    if(levelFrequencyInput){levelFrequencyInput.value=levelFrequencyIncrease;levelFrequencyOutput.textContent=levelFrequencyIncrease+'%';}
     LEVEL_DURATION=DEFAULT_LEVEL_DURATION;
     if(levelDurationInput){levelDurationInput.value=LEVEL_DURATION;levelDurationOutput.textContent=LEVEL_DURATION+'s';}
-    try { localStorage.setItem(levelSpeedIncreaseKey,String(levelSpeedIncrease)); localStorage.setItem(levelDurationKey,String(LEVEL_DURATION)); } catch {}
+    try { localStorage.setItem(levelSpeedIncreaseKey,String(levelSpeedIncrease)); localStorage.setItem(levelFrequencyIncreaseKey,String(levelFrequencyIncrease)); localStorage.setItem(levelDurationKey,String(LEVEL_DURATION)); } catch {}
     updateHud();
   });
   syncPowerRateControls();
   const levelSpeedInput = $('level-speed-increase');
   const levelSpeedOutput = $('level-speed-increase-value');
+  const levelFrequencyInput = $('level-frequency-increase');
+  const levelFrequencyOutput = $('level-frequency-increase-value');
   const levelDurationInput = $('level-duration');
   const levelDurationOutput = $('level-duration-value');
   if (levelDurationInput && levelDurationOutput) {
@@ -160,6 +169,15 @@
       levelSpeedIncrease = Math.max(0, Math.min(50, Number(e.target.value)));
       levelSpeedOutput.textContent = levelSpeedIncrease + '%';
       try { localStorage.setItem(levelSpeedIncreaseKey, String(levelSpeedIncrease)); } catch {}
+    });
+  }
+  if (levelFrequencyInput && levelFrequencyOutput) {
+    levelFrequencyInput.value = levelFrequencyIncrease;
+    levelFrequencyOutput.textContent = levelFrequencyIncrease + '%';
+    levelFrequencyInput.addEventListener('input', e => {
+      levelFrequencyIncrease = Math.max(0, Math.min(50, Number(e.target.value)));
+      levelFrequencyOutput.textContent = levelFrequencyIncrease + '%';
+      try { localStorage.setItem(levelFrequencyIncreaseKey, String(levelFrequencyIncrease)); } catch {}
     });
   }
   // The frequency editor is strictly a UAT-only control. Production builds
@@ -352,6 +370,9 @@
   function levelDifficultyMultiplier() {
     return Math.pow(1 + levelSpeedIncrease / 100, Math.max(0, levelNumber - 1));
   }
+  function asteroidFrequencyMultiplier() {
+    return Math.pow(1 + levelFrequencyIncrease / 100, Math.max(0, levelNumber - 1));
+  }
   function asteroidSpeed() {
     // The UAT slider controls the asteroid speed increase directly.
     return (170 + elapsed * 1.5) * levelDifficultyMultiplier();
@@ -401,7 +422,7 @@
 
     obstacleTimer-=dt; coinTimer-=dt; powerTimer-=dt;
     const difficultyTime=(levelNumber-1)*LEVEL_DURATION+elapsed;
-    const rockInterval=Math.max(.25,1.15-difficultyTime*.009);
+    const rockInterval=Math.max(.25,1.15-difficultyTime*.009) / asteroidFrequencyMultiplier();
     if(obstacleTimer<=0){spawnRock();obstacleTimer=rockInterval*(.75+Math.random()*.5);}
     if(coinTimer<=0){spawnCoin();coinTimer=1.25+Math.random()*1.15;}
     if(powerTimer<=0){spawnPowerUp();powerTimer=17+Math.random()*9;}
