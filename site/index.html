@@ -75,7 +75,7 @@
       <h2>UAT POWER-UP SETTINGS</h2>
       <p>Set each power-up spawn weight from 0% (off) to 300%. Higher values make that power-up more likely relative to the others. Changes are saved on this device.</p>
       <h2 style="margin-top:18px">LEVEL DIFFICULTY</h2>
-      <p class="setting-note">Coins and power-ups share the same falling speed. Asteroids are 15% faster. This setting increases all three speeds by the selected percentage per level, compounded; for example, 10% gives level 2 a 1.10× multiplier and level 3 a 1.21× multiplier.</p>
+      <p class="setting-note">Asteroids increase in speed by the selected percentage per level, compounded. Coins and power-ups travel at 95% of asteroid speed; for example, 10% gives asteroids a 1.10× multiplier at level 2 and 1.21× at level 3, with coins and power-ups always slightly slower.</p>
       <label class="power-setting" for="level-speed-increase"><span>Speed increase / level</span><input id="level-speed-increase" type="range" min="0" max="50" step="1"><output id="level-speed-increase-value"></output></label>
       <label class="power-setting" for="level-duration"><span>Level length</span><input id="level-duration" type="range" min="20" max="600" step="10"><output id="level-duration-value"></output></label>
       <label class="power-setting" for="shield-frequency"><span>Shield</span><input id="shield-frequency" type="range" min="0" max="300" step="10"><output id="shield-frequency-value" for="shield-frequency"></output></label>
@@ -352,10 +352,13 @@
   function levelDifficultyMultiplier() {
     return Math.pow(1 + levelSpeedIncrease / 100, Math.max(0, levelNumber - 1));
   }
-  function fallingPickupSpeed() {
-    // Coins and every power-up use precisely the same speed curve.
-    // The small within-level ramp applies equally to both.
+  function asteroidSpeed() {
+    // The UAT slider controls the asteroid speed increase directly.
     return (170 + elapsed * 1.5) * levelDifficultyMultiplier();
+  }
+  function fallingPickupSpeed() {
+    // Coins and power-ups are consistently 95% of asteroid speed.
+    return asteroidSpeed() * 0.95;
   }
   function spawnCoinAt(x,y,highValue=false) {
     pickups.push({type:highValue?'highCoin':'coin',x,y,r:highValue?14:11,speed:fallingPickupSpeed(),phase:Math.random()*6,value:highValue?5:1});
@@ -363,7 +366,7 @@
   function spawnRock() {
     const r=17+Math.random()*23, x=r+Math.random()*(W-2*r);
     if(elapsed<transmuteUntil){spawnCoinAt(x,-r);return;}
-    obstacles.push({x,y:-r,r,rot:Math.random()*6.28,spin:(Math.random()-.5)*2.4,speed:fallingPickupSpeed()*1.15});
+    obstacles.push({x,y:-r,r,rot:Math.random()*6.28,spin:(Math.random()-.5)*2.4,speed:asteroidSpeed()});
   }
   function spawnCoin() { spawnCoinAt(24+Math.random()*(W-48),-18,Math.random()<.12); }
   function spawnPowerUp() {
