@@ -21,6 +21,8 @@
     .panel { max-width:340px; padding:22px; border:1px solid #467ba4; border-radius:16px; background:#0b2035ed; box-shadow:0 10px 35px #0008; }
     .panel h2 { margin:0 0 10px; font-size:1.8rem; }
     .panel p { color:#c0d3e8; line-height:1.5; margin:8px 0 16px; }
+    .level-picker { display:block; margin:12px 0; color:#c0d3e8; font-size:.85rem; }
+    .level-picker select { display:block; width:100%; margin-top:6px; padding:9px; border:1px solid #467ba4; border-radius:8px; color:#eef6ff; background:#102b45; font:inherit; }
     button { border:0; border-radius:999px; padding:12px 24px; color:#06111c; background:#69d6ff; font:700 1rem inherit; cursor:pointer; box-shadow:0 4px 18px #69d6ff44; }
     button:hover { background:#a1e8ff; transform:translateY(-1px); }
     .game-controls { display:flex; justify-content:center; margin:9px auto 0; min-height:42px; }
@@ -52,7 +54,7 @@
   <div class="game-layout" id="game-layout">
     <div class="game-column">
       <div class="hud" aria-live="polite">
-        <span id="score">Score: 0</span><span id="lives">Lives: 5</span><span id="coins">Coins: 0</span>
+        <span id="level">Level: 1</span><span id="level-time">Time: 60s</span><span id="score">Score: 0</span><span id="lives">Lives: 5</span><span id="coins">Coins: 0</span>
       </div>
       <div class="game-wrap">
     <canvas id="game" width="480" height="720" aria-label="Space Dodger game area"></canvas>
@@ -61,6 +63,7 @@
         <h2 id="panel-title">Ready, pilot?</h2>
         <p id="panel-copy">Use the ← and → arrow keys to steer your ship. Dodge asteroids and collect the gold coins. You have five lives!</p>
         <button id="start-button" type="button">Start game</button>
+        <label id="level-picker-wrap" class="level-picker" for="level-picker" hidden>Replay a completed level <select id="level-picker" aria-label="Choose a previously completed level"></select></label>
         <p id="best-copy">Best score: 0</p>
       </div>
     </section>
@@ -86,11 +89,15 @@
   const W = canvas.width, H = canvas.height;
   const keys = new Set();
   let state = 'ready', lastTime = 0, elapsed = 0, score = 0, coins = 0, lives = 5;
+  const LEVEL_DURATION = 60;
+  let levelNumber = 1, highestCompletedLevel = 0;
   let cheatActive = false, cheatProgress = 0, explosionTimer = 0;
   let particles = [], shockwaves = [];
   let obstacleTimer = 0, coinTimer = 0, powerTimer = 0, obstacles = [], pickups = [], stars = [];
   const scoreScope = document.querySelector('meta[name="space-dodger-score-scope"]')?.content || 'unknown';
   const bestScoreKey = 'spaceDodgerBest:' + scoreScope;
+  const completedLevelKey = 'spaceDodgerCompletedLevel:' + scoreScope;
+  try { highestCompletedLevel = Math.max(0, Math.floor(Number(localStorage.getItem(completedLevelKey)) || 0)); } catch {}
   const defaultPowerRates = {shield:100, magnet:100, transmute:100};
   const powerRatesKey = 'spaceDodgerPowerRates:' + scoreScope;
   let powerRates = {...defaultPowerRates};
@@ -133,19 +140,66 @@
 
   for (let i=0;i<90;i++) stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+.3,s:18+Math.random()*45});
 
-  function reset() {
-    score=0; coins=0; lives=5; elapsed=0; obstacleTimer=.5; coinTimer=1.1; powerTimer=8;
-    obstacles=[]; pickups=[]; particles=[]; shockwaves=[]; player.x=W/2; player.y=H-100; hitUntil=0; shieldUntil=0; magnetUntil=0; transmuteUntil=0;
+  function resetLevelWorld() {
+    elapsed=0; obstacleTimer=.5; coinTimer=1.1; powerTimer=8;
+    obstacles=[]; pickups=[]; particles=[]; shockwaves=[];
+    player.x=W/2; player.y=H-100;
+    hitUntil=0; shieldUntil=0; magnetUntil=0; transmuteUntil=0;
     cheatActive=false; cheatProgress=0; explosionTimer=0;
-    $('pause-button').classList.add('hidden');
     updateHud();
   }
+  function resetRun(startLevel=1) {
+    score=0; coins=0; lives=5; levelNumber=startLevel;
+    resetLevelWorld();
+    $('pause-button').classList.add('hidden');
+  }
   function updateHud() {
+    $('level').textContent='Level: '+levelNumber;
+    $('level-time').textContent='Time: '+Math.max(0,Math.ceil(LEVEL_DURATION-elapsed))+'s';
     $('score').textContent='Score: '+Math.floor(score);
     $('lives').textContent='Lives: '+lives;
     $('coins').textContent='Coins: '+coins;
   }
-  function start() { reset(); state='playing'; $('overlay').classList.add('hidden'); $('pause-button').classList.remove('hidden'); $('pause-button').textContent='Pause'; lastTime=performance.now(); requestAnimationFrame(loop); }
+  function refreshLevelPicker() {
+    const wrap=$('level-picker-wrap'), picker=$('level-picker');
+    picker.replaceChildren();
+    for(let n=1;n<=highestCompletedLevel;n++) {
+      const option=document.createElement('option');
+      option.value=String(n); option.textContent='Level '+n; picker.append(option);
+    }
+    wrap.hidden=highestCompletedLevel<1;
+    if(highestCompletedLevel>0 && Number(picker.value)>highestCompletedLevel) picker.value=String(highestCompletedLevel);
+  }
+  function showStartChoices() {
+    refreshLevelPicker();
+    const selected=highestCompletedLevel>0?Number($('level-picker').value||highestCompletedLevel):1;
+    $('start-button').textContent='Continue from Level '+(highestCompletedLevel+1);
+    if(highestCompletedLevel>0 && selected!==highestCompletedLevel) $('start-button').textContent='Start Level '+selected;
+  }
+  function start() { resetRun(1); beginCurrentLevel(); }
+  function beginCurrentLevel() {
+    state='playing'; $('overlay').classList.add('hidden');
+    $('pause-button').classList.remove('hidden'); $('pause-button').textContent='Pause';
+    lastTime=performance.now(); requestAnimationFrame(loop);
+  }
+  function startNewRun(startLevel) { resetRun(startLevel); beginCurrentLevel(); }
+  function startNextLevel() {
+    levelNumber++;
+    resetLevelWorld();
+    beginCurrentLevel();
+  }
+  function completeLevel() {
+    highestCompletedLevel=Math.max(highestCompletedLevel,levelNumber);
+    try { localStorage.setItem(completedLevelKey,String(highestCompletedLevel)); } catch {}
+    state='levelComplete';
+    $('panel-title').textContent='Level '+levelNumber+' complete!';
+    $('panel-copy').textContent='Excellent flying! You survived the full minute. Take a breather, then continue to Level '+(levelNumber+1)+', or replay any level you have already completed.';
+    refreshLevelPicker();
+    $('start-button').textContent='Continue to Level '+(levelNumber+1);
+    $('best-copy').textContent='Best score: '+best;
+    $('pause-button').classList.add('hidden');
+    $('overlay').classList.remove('hidden');
+  }
   function pauseGame() {
     if(state!=='playing') return;
     state='paused'; keys.clear();
@@ -204,11 +258,28 @@
     $('panel-title').textContent='Game Over';
     $('panel-copy').textContent='Final score: '+finalScore+' · Coins collected: '+coins+'. Fancy another flight?';
     $('best-copy').textContent='Best score: '+best;
-    $('start-button').textContent='Play again';
+    refreshLevelPicker();
+    $('start-button').textContent='Continue from Level '+(highestCompletedLevel+1);
     $('pause-button').classList.add('hidden');
     $('overlay').classList.remove('hidden');
   }
-  $('start-button').addEventListener('click',()=>{if(state==='paused')resumeGame();else start();});
+  $('start-button').addEventListener('click',()=>{
+    if(state==='paused'){resumeGame();return;}
+    const selected=highestCompletedLevel>0?Number($('level-picker').value||highestCompletedLevel):1;
+    if(state==='levelComplete' && selected===levelNumber) { startNextLevel(); return; }
+    if(state==='levelComplete' && selected===levelNumber+1) { startNextLevel(); return; }
+    if(state==='levelComplete' && selected<=highestCompletedLevel) { startNewRun(selected); return; }
+    if(state==='over' || state==='ready') {
+      const target=highestCompletedLevel>0 && selected<=highestCompletedLevel ? selected : highestCompletedLevel+1;
+      startNewRun(target);
+    }
+  });
+  $('level-picker').addEventListener('change',()=>{
+    const selected=Number($('level-picker').value);
+    if(state==='levelComplete') $('start-button').textContent=selected===levelNumber+1?'Continue to Level '+(levelNumber+1):'Replay Level '+selected;
+    else $('start-button').textContent='Start Level '+selected;
+  });
+  showStartChoices();
   $('pause-button').addEventListener('click',togglePause);
   window.addEventListener('keydown',e=>{
     if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key)) e.preventDefault();
@@ -232,12 +303,14 @@
   window.addEventListener('blur',()=>{keys.clear();if(state==='playing')pauseGame();});
 
   function spawnCoinAt(x,y,highValue=false) {
-    pickups.push({type:highValue?'highCoin':'coin',x,y,r:highValue?14:11,speed:175+elapsed*3,phase:Math.random()*6,value:highValue?5:1});
+    const difficultyTime=(levelNumber-1)*LEVEL_DURATION+elapsed;
+    pickups.push({type:highValue?'highCoin':'coin',x,y,r:highValue?14:11,speed:175+difficultyTime*3,phase:Math.random()*6,value:highValue?5:1});
   }
   function spawnRock() {
     const r=17+Math.random()*23, x=r+Math.random()*(W-2*r);
     if(elapsed<transmuteUntil){spawnCoinAt(x,-r);return;}
-    obstacles.push({x,y:-r,r,rot:Math.random()*6.28,spin:(Math.random()-.5)*2.4,speed:165+Math.random()*75+elapsed*4});
+    const difficultyTime=(levelNumber-1)*LEVEL_DURATION+elapsed;
+    obstacles.push({x,y:-r,r,rot:Math.random()*6.28,spin:(Math.random()-.5)*2.4,speed:165+Math.random()*75+difficultyTime*4});
   }
   function spawnCoin() { spawnCoinAt(24+Math.random()*(W-48),-18,Math.random()<.12); }
   function spawnPowerUp() {
@@ -271,12 +344,14 @@
     player.y=Math.max(35,Math.min(H-35,player.y+dy*player.speed*dt));
 
     obstacleTimer-=dt; coinTimer-=dt; powerTimer-=dt;
-    const rockInterval=Math.max(.38,1.15-elapsed*.009);
+    const difficultyTime=(levelNumber-1)*LEVEL_DURATION+elapsed;
+    const rockInterval=Math.max(.38,1.15-difficultyTime*.009);
     if(obstacleTimer<=0){spawnRock();obstacleTimer=rockInterval*(.75+Math.random()*.5);}
     if(coinTimer<=0){spawnCoin();coinTimer=1.25+Math.random()*1.15;}
     if(powerTimer<=0){spawnPowerUp();powerTimer=17+Math.random()*9;}
 
-    stars.forEach(s=>{s.y+=s.s*dt*(1+elapsed*.012);if(s.y>H){s.y=0;s.x=Math.random()*W;}});
+    const difficultyTime=(levelNumber-1)*LEVEL_DURATION+elapsed;
+    stars.forEach(s=>{s.y+=s.s*dt*(1+difficultyTime*.012);if(s.y>H){s.y=0;s.x=Math.random()*W;}});
     obstacles.forEach(o=>{o.y+=o.speed*dt;o.rot+=o.spin*dt;});
     pickups.forEach(p=>{
       const isCoin=p.type==='coin'||p.type==='highCoin';
@@ -323,6 +398,7 @@
     }
     pickups=pickups.filter(p=>!p.taken);
     updateHud();
+    if(elapsed>=LEVEL_DURATION) completeLevel();
   }
 
   function drawShip() {
