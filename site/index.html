@@ -367,15 +367,17 @@
   window.addEventListener('keyup',e=>keys.delete(e.key));
   window.addEventListener('blur',()=>{keys.clear();if(state==='playing')pauseGame();});
 
-  function levelDifficultyMultiplier() {
+  // Keep the two level progression settings independent:
+  // speed changes object velocity only; frequency changes spawn interval only.
+  function asteroidSpeedMultiplier() {
     return Math.pow(1 + levelSpeedIncrease / 100, Math.max(0, levelNumber - 1));
   }
-  function asteroidFrequencyMultiplier() {
+  function asteroidSpawnFrequencyMultiplier() {
     return Math.pow(1 + levelFrequencyIncrease / 100, Math.max(0, levelNumber - 1));
   }
   function asteroidSpeed() {
-    // The UAT slider controls the asteroid speed increase directly.
-    return (170 + elapsed * 1.5) * levelDifficultyMultiplier();
+    // Speed setting affects asteroid velocity, never the spawn interval.
+    return (170 + elapsed * 1.5) * asteroidSpeedMultiplier();
   }
   function fallingPickupSpeed() {
     // Coins and power-ups are consistently 95% of asteroid speed.
@@ -422,7 +424,8 @@
 
     obstacleTimer-=dt; coinTimer-=dt; powerTimer-=dt;
     const difficultyTime=(levelNumber-1)*LEVEL_DURATION+elapsed;
-    const rockInterval=Math.max(.25,1.15-difficultyTime*.009) / asteroidFrequencyMultiplier();
+    // Frequency setting affects asteroid spawn timing, never object velocity.
+    const rockInterval=Math.max(.25,1.15-difficultyTime*.009) / asteroidSpawnFrequencyMultiplier();
     if(obstacleTimer<=0){spawnRock();obstacleTimer=rockInterval*(.75+Math.random()*.5);}
     if(coinTimer<=0){spawnCoin();coinTimer=1.25+Math.random()*1.15;}
     if(powerTimer<=0){spawnPowerUp();powerTimer=17+Math.random()*9;}
