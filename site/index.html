@@ -13,7 +13,7 @@
     main { width:min(100%,850px); text-align:center; }
     h1 { margin:0 0 5px; font-size:clamp(1.7rem,6vw,2.5rem); letter-spacing:.12em; }
     .tagline { margin:0 0 14px; color:#a9bfd8; }
-    .hud { display:flex; justify-content:space-between; gap:8px; margin:0 auto 9px; max-width:480px; font-weight:700; font-size:.95rem; }
+    .hud { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin:0 auto 9px; max-width:480px; font-weight:700; font-size:.95rem; }
     .hud span { padding:7px 10px; border:1px solid #284867; border-radius:9px; background:#0a1c30; }
     .game-wrap { position:relative; width:min(100%,480px); margin:auto; border:2px solid #315a7d; border-radius:14px; overflow:hidden; box-shadow:0 18px 60px #0009,0 0 28px #4bb9ff22; background:#050d19; }
     canvas { display:block; width:100%; height:auto; aspect-ratio:2/3; }
@@ -163,18 +163,18 @@
   function refreshLevelPicker() {
     const wrap=$('level-picker-wrap'), picker=$('level-picker');
     picker.replaceChildren();
+    const next=document.createElement('option');
+    next.value='next'; next.textContent='Continue to Level '+(highestCompletedLevel+1); picker.append(next);
     for(let n=1;n<=highestCompletedLevel;n++) {
       const option=document.createElement('option');
-      option.value=String(n); option.textContent='Level '+n; picker.append(option);
+      option.value=String(n); option.textContent='Replay Level '+n; picker.append(option);
     }
+    picker.value='next';
     wrap.hidden=highestCompletedLevel<1;
-    if(highestCompletedLevel>0 && Number(picker.value)>highestCompletedLevel) picker.value=String(highestCompletedLevel);
   }
   function showStartChoices() {
     refreshLevelPicker();
-    const selected=highestCompletedLevel>0?Number($('level-picker').value||highestCompletedLevel):1;
-    $('start-button').textContent='Continue from Level '+(highestCompletedLevel+1);
-    if(highestCompletedLevel>0 && selected!==highestCompletedLevel) $('start-button').textContent='Start Level '+selected;
+    $('start-button').textContent='Continue to Level '+(highestCompletedLevel+1);
   }
   function start() { resetRun(1); beginCurrentLevel(); }
   function beginCurrentLevel() {
@@ -265,19 +265,21 @@
   }
   $('start-button').addEventListener('click',()=>{
     if(state==='paused'){resumeGame();return;}
-    const selected=highestCompletedLevel>0?Number($('level-picker').value||highestCompletedLevel):1;
-    if(state==='levelComplete' && selected===levelNumber) { startNextLevel(); return; }
-    if(state==='levelComplete' && selected===levelNumber+1) { startNextLevel(); return; }
-    if(state==='levelComplete' && selected<=highestCompletedLevel) { startNewRun(selected); return; }
-    if(state==='over' || state==='ready') {
-      const target=highestCompletedLevel>0 && selected<=highestCompletedLevel ? selected : highestCompletedLevel+1;
-      startNewRun(target);
+    const choice=$('level-picker').value;
+    if(choice==='next') {
+      if(state==='levelComplete') startNextLevel();
+      else if(state==='over' || state==='ready') startNewRun(highestCompletedLevel+1);
+      return;
     }
+    const selected=Number(choice);
+    if(selected>=1 && selected<=highestCompletedLevel) startNewRun(selected);
+    else if(state==='ready' || state==='over') startNewRun(1);
   });
   $('level-picker').addEventListener('change',()=>{
-    const selected=Number($('level-picker').value);
-    if(state==='levelComplete') $('start-button').textContent=selected===levelNumber+1?'Continue to Level '+(levelNumber+1):'Replay Level '+selected;
-    else $('start-button').textContent='Start Level '+selected;
+    const choice=$('level-picker').value;
+    $('start-button').textContent=choice==='next'
+      ? (state==='levelComplete'?'Continue to Level '+(levelNumber+1):'Continue to Level '+(highestCompletedLevel+1))
+      : 'Replay Level '+choice;
   });
   showStartChoices();
   $('pause-button').addEventListener('click',togglePause);
