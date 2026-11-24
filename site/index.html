@@ -352,7 +352,6 @@
     if(coinTimer<=0){spawnCoin();coinTimer=1.25+Math.random()*1.15;}
     if(powerTimer<=0){spawnPowerUp();powerTimer=17+Math.random()*9;}
 
-    const difficultyTime=(levelNumber-1)*LEVEL_DURATION+elapsed;
     stars.forEach(s=>{s.y+=s.s*dt*(1+difficultyTime*.012);if(s.y>H){s.y=0;s.x=Math.random()*W;}});
     obstacles.forEach(o=>{o.y+=o.speed*dt;o.rot+=o.spin*dt;});
     pickups.forEach(p=>{
