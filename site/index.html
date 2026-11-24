@@ -184,7 +184,7 @@
   }
   function startNewRun(startLevel) { resetRun(startLevel); beginCurrentLevel(); }
   function startNextLevel() {
-    levelNumber++;
+    levelNumber=highestCompletedLevel+1;
     resetLevelWorld();
     beginCurrentLevel();
   }
@@ -193,9 +193,9 @@
     try { localStorage.setItem(completedLevelKey,String(highestCompletedLevel)); } catch {}
     state='levelComplete';
     $('panel-title').textContent='Level '+levelNumber+' complete!';
-    $('panel-copy').textContent='Excellent flying! You survived the full minute. Take a breather, then continue to Level '+(levelNumber+1)+', or replay any level you have already completed.';
+    $('panel-copy').textContent='Excellent flying! You survived the full minute. Take a breather, then continue from your latest completed progress, or replay any level you have already completed.';
     refreshLevelPicker();
-    $('start-button').textContent='Continue to Level '+(levelNumber+1);
+    $('start-button').textContent='Continue to Level '+(highestCompletedLevel+1);
     $('best-copy').textContent='Best score: '+best;
     $('pause-button').classList.add('hidden');
     $('overlay').classList.remove('hidden');
@@ -278,7 +278,7 @@
   $('level-picker').addEventListener('change',()=>{
     const choice=$('level-picker').value;
     $('start-button').textContent=choice==='next'
-      ? (state==='levelComplete'?'Continue to Level '+(levelNumber+1):'Continue to Level '+(highestCompletedLevel+1))
+      ? (state==='levelComplete'?'Continue to Level '+(highestCompletedLevel+1):'Continue to Level '+(highestCompletedLevel+1))
       : 'Replay Level '+choice;
   });
   showStartChoices();
