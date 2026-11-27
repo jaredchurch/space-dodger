@@ -47,6 +47,9 @@
     .power-setting input { width:100%; accent-color:#69d6ff; }
     .power-setting output { text-align:right; font-variant-numeric:tabular-nums; }
     .setting-note { margin:4px 0 10px; color:#a9bfd8; font-size:.75rem; line-height:1.4; }
+    .settings-heading { display:none; }
+    .game-controls #tuning-button { display:none; }
+    .settings-subheading { margin:0 0 5px; font-size:1rem; letter-spacing:.08em; }
     .settings-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
     .settings-actions button { padding:7px 13px; font-size:.8rem; }
     #power-settings-panel[hidden] { display:none; }
@@ -71,8 +74,21 @@
         padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
         text-align:center;
       }
-      main > h1, main > .tagline, main > .help, #layout-preview-button,
+      main > h1, main > .tagline, main > .help, #layout-preview-button { display:none !important; }
       #power-settings-section { display:none !important; }
+      .game-controls #tuning-button { display:inline-block; }
+      .settings-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+      .settings-heading h2 { margin:0; }
+      .settings-heading button { padding:7px 13px; font-size:.8rem; }
+      .settings-subheading { margin-top:18px !important; }
+      main.tuning-open #power-settings-section {
+        display:block !important; position:fixed; z-index:20;
+        inset:calc(env(safe-area-inset-top) + 8px) 8px calc(env(safe-area-inset-bottom) + 8px);
+        overflow:auto; overscroll-behavior:contain; margin:0; padding:16px;
+        border:1px solid #467ba4; border-radius:14px; background:#081a2b;
+        box-shadow:0 12px 50px #000d; -webkit-overflow-scrolling:touch;
+      }
+      main.tuning-open .game-controls { z-index:21; }
       .game-layout, .game-layout.production-layout {
         display:flex; flex:1 1 auto; flex-direction:column;
         width:100%; min-width:0; min-height:0; gap:0;
@@ -142,10 +158,11 @@
         <button type="button" data-key="ArrowLeft" aria-label="Move left">◀</button>
         <button type="button" data-key="ArrowRight" aria-label="Move right">▶</button>
       </div>
-      <div class="game-controls"><button id="pause-button" class="hidden" type="button">Pause</button></div>
+      <div class="game-controls"><button id="tuning-button" class="hidden" type="button" aria-controls="power-settings-section" aria-expanded="false">Tune</button><button id="pause-button" class="hidden" type="button">Pause</button></div>
     </div>
     <section class="power-settings" id="power-settings-section" aria-label="UAT power-up settings">
-      <h2>UAT POWER-UP SETTINGS</h2>
+      <div class="settings-heading"><h2>UAT TUNING</h2><button id="close-tuning-button" type="button">Close</button></div>
+      <h2 class="settings-subheading">POWER-UP SETTINGS</h2>
       <p>Set each power-up spawn weight from 0% (off) to 300%. Higher values make that power-up more likely relative to the others. Changes are saved on this device.</p>
       <h2 style="margin-top:18px">LEVEL DIFFICULTY</h2>
       <p class="setting-note">Speed and asteroid spawn frequency each increase by their selected percentage per level, compounded. Coins and power-ups travel at 95% of asteroid speed.</p>
@@ -257,6 +274,18 @@
   // The frequency editor is strictly a UAT-only control. Production builds
   // receive a version score scope during release assembly.
   $('power-settings-section').hidden = scoreScope !== 'uat';
+  const tuningButton = $('tuning-button');
+  const closeTuningButton = $('close-tuning-button');
+  function setTuningOpen(open) {
+    document.querySelector('main').classList.toggle('tuning-open', open);
+    tuningButton.setAttribute('aria-expanded', String(open));
+    tuningButton.textContent = open ? 'Close tune' : 'Tune';
+  }
+  if (scoreScope === 'uat') {
+    tuningButton.classList.remove('hidden');
+    tuningButton.addEventListener('click', () => setTuningOpen(!document.querySelector('main').classList.contains('tuning-open')));
+    closeTuningButton.addEventListener('click', () => setTuningOpen(false));
+  }
   $('game-layout')?.classList.toggle('production-layout', scoreScope !== 'uat');
   // UAT-only preview lets us verify the production layout without releasing.
   const layoutPreviewButton = $('layout-preview-button');
