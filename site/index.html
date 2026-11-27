@@ -2,8 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#07111f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Space Dodger">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icon.svg">
   <meta name="space-dodger-score-scope" content="__SPACE_DODGER_SCORE_SCOPE__">
   <title>Space Dodger</title>
   <style>
@@ -25,7 +30,12 @@
     .level-picker select { display:block; width:100%; margin-top:6px; padding:9px; border:1px solid #467ba4; border-radius:8px; color:#eef6ff; background:#102b45; font:inherit; }
     button { border:0; border-radius:999px; padding:12px 24px; color:#06111c; background:#69d6ff; font:700 1rem inherit; cursor:pointer; box-shadow:0 4px 18px #69d6ff44; }
     button:hover { background:#a1e8ff; transform:translateY(-1px); }
-    .game-controls { display:flex; justify-content:center; margin:9px auto 0; min-height:42px; }
+    .game-controls { display:flex; align-items:center; justify-content:center; gap:14px; margin:9px auto 0; min-height:48px; }
+    .touch-controls { display:none; justify-content:center; align-items:center; gap:22px; margin:10px auto 0; }
+    .touch-controls button { width:76px; height:58px; padding:0; border:1px solid #6acfff; border-radius:16px; color:#eaf8ff; background:#123553; font-size:1.65rem; touch-action:none; user-select:none; -webkit-user-select:none; }
+    .touch-controls button:active, .touch-controls button.is-pressed { background:#2677a8; transform:scale(.97); }
+    canvas { touch-action:none; -webkit-user-select:none; user-select:none; }
+    @media (pointer:coarse) { .touch-controls { display:flex; } }
     .game-controls button { padding:9px 20px; font-size:.9rem; }
     .game-layout { display:grid; grid-template-columns:minmax(0,480px) minmax(270px,1fr); gap:16px; align-items:start; }
     .game-layout.production-layout { grid-template-columns:minmax(0,480px); justify-content:center; }
@@ -69,6 +79,10 @@
       </div>
     </section>
   </div>
+      <div class="touch-controls" id="touch-controls" aria-label="Touch movement controls">
+        <button type="button" data-key="ArrowLeft" aria-label="Move left">◀</button>
+        <button type="button" data-key="ArrowRight" aria-label="Move right">▶</button>
+      </div>
       <div class="game-controls"><button id="pause-button" class="hidden" type="button">Pause</button></div>
     </div>
     <section class="power-settings" id="power-settings-section" aria-label="UAT power-up settings">
@@ -94,6 +108,7 @@
   const $ = id => document.getElementById(id);
   const W = canvas.width, H = canvas.height;
   const keys = new Set();
+  let touchTarget = null;
   let state = 'ready', lastTime = 0, elapsed = 0, score = 0, coins = 0, lives = 5;
   const DEFAULT_LEVEL_DURATION = 60;
   let LEVEL_DURATION = DEFAULT_LEVEL_DURATION;
@@ -365,7 +380,38 @@
     if((e.key==='Enter'||e.key===' ') && state!=='playing' && state!=='paused') start();
   });
   window.addEventListener('keyup',e=>keys.delete(e.key));
-  window.addEventListener('blur',()=>{keys.clear();if(state==='playing')pauseGame();});
+  // Touch users can steer with the on-screen buttons or drag directly across the playfield.
+  document.querySelectorAll('.touch-controls [data-key]').forEach(button=>{
+    const key=button.dataset.key;
+    const release=()=>{keys.delete(key);button.classList.remove('is-pressed');};
+    button.addEventListener('pointerdown',event=>{
+      event.preventDefault();
+      if(state!=='playing') return;
+      button.setPointerCapture(event.pointerId); keys.add(key); button.classList.add('is-pressed');
+    });
+    button.addEventListener('pointerup',release);
+    button.addEventListener('pointercancel',release);
+    button.addEventListener('lostpointercapture',release);
+  });
+  function updateTouchTarget(event) {
+    const rect=canvas.getBoundingClientRect();
+    touchTarget={x:(event.clientX-rect.left)*W/rect.width,y:(event.clientY-rect.top)*H/rect.height};
+  }
+  canvas.addEventListener('pointerdown',event=>{
+    if(state!=='playing') return;
+    event.preventDefault(); canvas.setPointerCapture(event.pointerId); updateTouchTarget(event);
+  });
+  canvas.addEventListener('pointermove',event=>{if(canvas.hasPointerCapture(event.pointerId)&&state==='playing') updateTouchTarget(event);});
+  const clearTouchTarget=()=>{touchTarget=null;};
+  canvas.addEventListener('pointerup',clearTouchTarget);
+  canvas.addEventListener('pointercancel',clearTouchTarget);
+  canvas.addEventListener('lostpointercapture',clearTouchTarget);
+  window.addEventListener('blur',()=>{keys.clear();touchTarget=null;if(state==='playing')pauseGame();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){keys.clear();touchTarget=null;if(state==='playing')pauseGame();}});
+
+  if('serviceWorker' in navigator && location.protocol!=='file:') {
+    window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(error=>console.warn('Offline support could not be enabled:',error)));
+  }
 
   // Keep the two level progression settings independent:
   // speed changes object velocity only; frequency changes spawn interval only.
@@ -419,6 +465,11 @@
     awardPoints(dt*5);
     const dx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0);
     const dy=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
+    if(touchTarget) {
+      const blend=Math.min(1,dt*12);
+      player.x+=(touchTarget.x-player.x)*blend;
+      player.y+=(touchTarget.y-player.y)*blend;
+    }
     player.x=Math.max(25,Math.min(W-25,player.x+dx*player.speed*dt));
     player.y=Math.max(35,Math.min(H-35,player.y+dy*player.speed*dt));
 
