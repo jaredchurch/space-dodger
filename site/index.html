@@ -165,7 +165,7 @@
       <h2 class="settings-subheading">POWER-UP SETTINGS</h2>
       <p>Set each power-up spawn weight from 0% (off) to 300%. Higher values make that power-up more likely relative to the others. Changes are saved on this device.</p>
       <h2 style="margin-top:18px">LEVEL DIFFICULTY</h2>
-      <p class="setting-note">Speed and asteroid spawn frequency each increase by their selected percentage per level, compounded. Coins and power-ups travel at 95% of asteroid speed.</p>
+      <p class="setting-note">Speed and asteroid spawn frequency each increase by their selected percentage per level, compounded. Asteroids have a minimum 0.65-second spawn gap. Coins and power-ups travel at 95% of asteroid speed.</p>
       <label class="power-setting" for="level-speed-increase"><span>Asteroid speed increase / level</span><input id="level-speed-increase" type="range" min="0" max="50" step="1"><output id="level-speed-increase-value"></output></label>
       <label class="power-setting" for="level-frequency-increase"><span>Asteroid frequency increase / level</span><input id="level-frequency-increase" type="range" min="0" max="50" step="1"><output id="level-frequency-increase-value"></output></label>
       <label class="power-setting" for="level-duration"><span>Level length</span><input id="level-duration" type="range" min="20" max="600" step="10"><output id="level-duration-value"></output></label>
@@ -564,8 +564,12 @@
     obstacleTimer-=dt; coinTimer-=dt; powerTimer-=dt;
     const difficultyTime=(levelNumber-1)*LEVEL_DURATION+elapsed;
     // Frequency setting affects asteroid spawn timing, never object velocity.
-    const rockInterval=Math.max(.25,1.15-difficultyTime*.009) / asteroidSpawnFrequencyMultiplier();
-    if(obstacleTimer<=0){spawnRock();obstacleTimer=rockInterval*(.75+Math.random()*.5);}
+    const rockInterval=1.15 / asteroidSpawnFrequencyMultiplier();
+    if(obstacleTimer<=0){
+      spawnRock();
+      // Keep a hard minimum gap so later levels stay challenging but playable.
+      obstacleTimer=Math.max(.65,rockInterval*(.85+Math.random()*.3));
+    }
     if(coinTimer<=0){spawnCoin();coinTimer=1.25+Math.random()*1.15;}
     if(powerTimer<=0){spawnPowerUp();powerTimer=17+Math.random()*9;}
 
