@@ -196,10 +196,10 @@
   const bestScoreKey = 'spaceDodgerBest:' + scoreScope;
   const completedLevelKey = 'spaceDodgerCompletedLevel:' + scoreScope;
   try { highestCompletedLevel = Math.max(0, Math.floor(Number(localStorage.getItem(completedLevelKey)) || 0)); } catch {}
-  const defaultPowerRates = {shield:100, magnet:100, transmute:100};
+  const defaultPowerRates = {shield:300, magnet:300, transmute:300};
   const powerRatesKey = 'spaceDodgerPowerRates:' + scoreScope;
-  const DEFAULT_LEVEL_SPEED_INCREASE = 10;
-  const DEFAULT_LEVEL_FREQUENCY_INCREASE = 10;
+  const DEFAULT_LEVEL_SPEED_INCREASE = 3;
+  const DEFAULT_LEVEL_FREQUENCY_INCREASE = 3;
   const levelSpeedIncreaseKey = 'spaceDodgerLevelSpeedIncrease:' + scoreScope;
   const levelFrequencyIncreaseKey = 'spaceDodgerLevelFrequencyIncrease:' + scoreScope;
   const levelDurationKey = 'spaceDodgerLevelDuration:' + scoreScope;
