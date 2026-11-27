@@ -172,7 +172,7 @@
       <label class="power-setting" for="shield-frequency"><span>Shield</span><input id="shield-frequency" type="range" min="0" max="300" step="10"><output id="shield-frequency-value" for="shield-frequency"></output></label>
       <label class="power-setting" for="magnet-frequency"><span>Magnet</span><input id="magnet-frequency" type="range" min="0" max="300" step="10"><output id="magnet-frequency-value" for="magnet-frequency"></output></label>
       <label class="power-setting" for="transmute-frequency"><span>Asteroid converter</span><input id="transmute-frequency" type="range" min="0" max="300" step="10"><output id="transmute-frequency-value" for="transmute-frequency"></output></label>
-      <div class="settings-actions"><button id="reset-power-settings" type="button">Reset defaults</button></div>
+      <div class="settings-actions"><span id="tuning-export-status" role="status" aria-live="polite"></span><button id="copy-tuning-config" type="button">Copy config</button><button id="reset-power-settings" type="button">Reset defaults</button></div>
     </section>
   </div>
   <p class="help">Controls: ← → move · ↑ ↓ also work · P or Esc to pause/resume. Green shields grant 20 seconds of invincibility. Blue magnets pull coins towards you for 10 seconds; orange converters turn asteroids into coins for 8 seconds. Pink high-value coins are worth five coins. After a hit, your ship flashes for 2 seconds.</p>
@@ -225,6 +225,54 @@
   powerRateIds.forEach(type=>$ (type+'-frequency').addEventListener('input',e=>{
     powerRates[type]=Number(e.target.value); $(type+'-frequency-value').textContent=powerRates[type]+'%'; savePowerRates();
   }));
+  // Export the live UAT tuning values as a portable JSON config for review.
+  const copyTuningButton = $('copy-tuning-config');
+  const tuningExportStatus = $('tuning-export-status');
+  function getTuningConfig() {
+    return {
+      schemaVersion: 1,
+      game: 'space-dodger',
+      environment: scoreScope,
+      tuning: {
+        levelDurationSeconds: LEVEL_DURATION,
+        asteroidSpeedIncreasePerLevelPercent: levelSpeedIncrease,
+        asteroidSpawnFrequencyIncreasePerLevelPercent: levelFrequencyIncrease,
+        powerUpSpawnWeightsPercent: {
+          shield: powerRates.shield,
+          magnet: powerRates.magnet,
+          asteroidConverter: powerRates.transmute
+        }
+      }
+    };
+  }
+  async function copyTuningConfig() {
+    const configText = JSON.stringify(getTuningConfig(), null, 2);
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(configText);
+      } else {
+        throw new Error('Clipboard API unavailable');
+      }
+      tuningExportStatus.textContent = 'Config copied — paste it into ChatGPT.';
+    } catch {
+      // Fallback for browsers that do not expose the Clipboard API.
+      const temporary = document.createElement('textarea');
+      temporary.value = configText;
+      temporary.setAttribute('readonly', '');
+      temporary.style.position = 'fixed';
+      temporary.style.opacity = '0';
+      document.body.appendChild(temporary);
+      temporary.select();
+      temporary.setSelectionRange(0, temporary.value.length);
+      let copied = false;
+      try { copied = document.execCommand('copy'); } catch {}
+      temporary.remove();
+      tuningExportStatus.textContent = copied
+        ? 'Config copied — paste it into ChatGPT.'
+        : 'Copy unavailable here. Try again in Safari or Chrome.';
+    }
+  }
+  copyTuningButton.addEventListener('click', copyTuningConfig);
   $('reset-power-settings').addEventListener('click',()=>{
     powerRates={...defaultPowerRates}; syncPowerRateControls(); savePowerRates();
     levelSpeedIncrease=DEFAULT_LEVEL_SPEED_INCREASE;
