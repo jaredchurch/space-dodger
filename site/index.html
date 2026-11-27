@@ -2,8 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#07111f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Space Dodger">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./icon.svg">
   <meta name="space-dodger-score-scope" content="__SPACE_DODGER_SCORE_SCOPE__">
   <title>Space Dodger</title>
   <style>
@@ -13,17 +18,24 @@
     main { width:min(100%,850px); text-align:center; }
     h1 { margin:0 0 5px; font-size:clamp(1.7rem,6vw,2.5rem); letter-spacing:.12em; }
     .tagline { margin:0 0 14px; color:#a9bfd8; }
-    .hud { display:flex; justify-content:space-between; gap:8px; margin:0 auto 9px; max-width:480px; font-weight:700; font-size:.95rem; }
-    .hud span { padding:7px 10px; border:1px solid #284867; border-radius:9px; background:#0a1c30; }
+    .hud { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:6px; margin:0 auto 9px; width:100%; max-width:480px; min-width:0; font-weight:700; font-size:clamp(.62rem,2.8vw,.95rem); }
+    .hud span { display:flex; align-items:center; justify-content:center; min-width:0; min-height:34px; padding:6px 3px; border:1px solid #284867; border-radius:9px; background:#0a1c30; white-space:nowrap; font-variant-numeric:tabular-nums; }
     .game-wrap { position:relative; width:min(100%,480px); margin:auto; border:2px solid #315a7d; border-radius:14px; overflow:hidden; box-shadow:0 18px 60px #0009,0 0 28px #4bb9ff22; background:#050d19; }
     canvas { display:block; width:100%; height:auto; aspect-ratio:2/3; }
     .overlay { position:absolute; inset:0; display:grid; place-items:center; padding:24px; background:#04101bdc; backdrop-filter:blur(5px); }
     .panel { max-width:340px; padding:22px; border:1px solid #467ba4; border-radius:16px; background:#0b2035ed; box-shadow:0 10px 35px #0008; }
     .panel h2 { margin:0 0 10px; font-size:1.8rem; }
     .panel p { color:#c0d3e8; line-height:1.5; margin:8px 0 16px; }
+    .level-picker { display:block; margin:12px 0; color:#c0d3e8; font-size:.85rem; }
+    .level-picker select { display:block; width:100%; margin-top:6px; padding:9px; border:1px solid #467ba4; border-radius:8px; color:#eef6ff; background:#102b45; font:inherit; }
     button { border:0; border-radius:999px; padding:12px 24px; color:#06111c; background:#69d6ff; font:700 1rem inherit; cursor:pointer; box-shadow:0 4px 18px #69d6ff44; }
     button:hover { background:#a1e8ff; transform:translateY(-1px); }
-    .game-controls { display:flex; justify-content:center; margin:9px auto 0; min-height:42px; }
+    .game-controls { display:flex; align-items:center; justify-content:center; gap:14px; margin:9px auto 0; min-height:48px; }
+    .touch-controls { display:none; justify-content:center; align-items:center; gap:22px; margin:10px auto 0; }
+    .touch-controls button { width:76px; height:58px; padding:0; border:1px solid #6acfff; border-radius:16px; color:#eaf8ff; background:#123553; font-size:1.65rem; touch-action:none; user-select:none; -webkit-user-select:none; }
+    .touch-controls button:active, .touch-controls button.is-pressed { background:#2677a8; transform:scale(.97); }
+    canvas { touch-action:none; -webkit-user-select:none; user-select:none; }
+    @media (pointer:coarse) { .touch-controls { display:flex; } }
     .game-controls button { padding:9px 20px; font-size:.9rem; }
     .game-layout { display:grid; grid-template-columns:minmax(0,480px) minmax(270px,1fr); gap:16px; align-items:start; }
     .game-layout.production-layout { grid-template-columns:minmax(0,480px); justify-content:center; }
@@ -34,6 +46,10 @@
     .power-setting { display:grid; grid-template-columns: minmax(100px,1fr) minmax(110px,1.5fr) 42px; align-items:center; gap:9px; margin:9px 0; font-size:.85rem; }
     .power-setting input { width:100%; accent-color:#69d6ff; }
     .power-setting output { text-align:right; font-variant-numeric:tabular-nums; }
+    .setting-note { margin:4px 0 10px; color:#a9bfd8; font-size:.75rem; line-height:1.4; }
+    .settings-heading { display:none; }
+    .game-controls #tuning-button { display:none; }
+    .settings-subheading { margin:0 0 5px; font-size:1rem; letter-spacing:.08em; }
     .settings-actions { display:flex; justify-content:flex-end; gap:8px; margin-top:10px; }
     .settings-actions button { padding:7px 13px; font-size:.8rem; }
     #power-settings-panel[hidden] { display:none; }
@@ -41,7 +57,79 @@
     @media (max-width:760px) { .game-layout { grid-template-columns:minmax(0,480px); justify-content:center; } .power-settings { margin-top:12px; } }
     .hidden { display:none; }
     .power { color:#8fffd0; }
-    @media (max-width:420px) { body{padding:10px} .hud{font-size:.8rem}.hud span{padding:6px 7px} }
+    @media (max-width:420px) { body{padding:10px} .hud{gap:4px}.hud span{padding:6px 2px; min-height:32px} }
+
+    /* iPhone / touch layout: make the playfield the entire available viewport. */
+    @media (max-width:760px) and (pointer:coarse) {
+      html, body { width:100%; height:100%; min-height:100%; margin:0; overflow:hidden; }
+      body {
+        position:fixed; inset:0; display:block; padding:0;
+        height:100vh; height:100dvh; min-height:0;
+        background:#050d19;
+        overscroll-behavior:none;
+      }
+      main {
+        display:flex; flex-direction:column;
+        width:100%; height:100vh; height:100dvh; max-width:none;
+        padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+        text-align:center;
+      }
+      main > h1, main > .tagline, main > .help, #layout-preview-button { display:none !important; }
+      #power-settings-section { display:none !important; }
+      .game-controls #tuning-button { display:inline-block; }
+      .settings-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
+      .settings-heading h2 { margin:0; }
+      .settings-heading button { padding:7px 13px; font-size:.8rem; }
+      .settings-subheading { margin-top:18px !important; }
+      main.tuning-open #power-settings-section {
+        display:block !important; position:fixed; z-index:20;
+        inset:calc(env(safe-area-inset-top) + 8px) 8px calc(env(safe-area-inset-bottom) + 8px);
+        overflow:auto; overscroll-behavior:contain; margin:0; padding:16px;
+        border:1px solid #467ba4; border-radius:14px; background:#081a2b;
+        box-shadow:0 12px 50px #000d; -webkit-overflow-scrolling:touch;
+      }
+      main.tuning-open .game-controls { z-index:21; }
+      .game-layout, .game-layout.production-layout {
+        display:flex; flex:1 1 auto; flex-direction:column;
+        width:100%; min-width:0; min-height:0; gap:0;
+      }
+      .game-column {
+        display:flex; flex:1 1 auto; flex-direction:column;
+        width:100%; min-width:0; min-height:0;
+      }
+      .hud {
+        flex:0 0 auto; width:100%; max-width:none; gap:3px;
+        margin:0; padding:5px 5px 6px;
+        font-size:clamp(.58rem,2.7vw,.78rem);
+      }
+      .hud span {
+        min-height:32px; padding:4px 1px; border-radius:6px;
+        font-size:inherit;
+      }
+      .game-wrap {
+        display:flex; flex:1 1 auto; align-items:stretch; justify-content:center;
+        width:100%; min-width:0; min-height:0; height:auto; margin:0;
+        border:0; border-radius:0; box-shadow:none;
+      }
+      canvas {
+        display:block; width:100%; height:100%; min-height:0;
+        aspect-ratio:auto; touch-action:none;
+      }
+      .overlay { padding:18px; }
+      .panel { width:min(100%,340px); max-height:calc(100% - 24px); overflow:auto; padding:20px; }
+      .panel h2 { font-size:1.55rem; }
+      .panel p { font-size:.9rem; }
+      .touch-controls {
+        display:flex; flex:0 0 auto; height:66px; gap:22px;
+        margin:0; padding:4px 0 4px;
+      }
+      .touch-controls button { width:min(28vw,100px); height:56px; }
+      .game-controls {
+        position:fixed; z-index:5; top:calc(env(safe-area-inset-top) + 43px);
+        right:8px; min-height:0; margin:0;
+      }
+      .game-controls button { padding:7px 13px; font-size:.78rem; }
+    }
   </style>
 </head>
 <body>
@@ -52,7 +140,7 @@
   <div class="game-layout" id="game-layout">
     <div class="game-column">
       <div class="hud" aria-live="polite">
-        <span id="score">Score: 0</span><span id="lives">Lives: 5</span><span id="coins">Coins: 0</span>
+        <span id="level">Level: 1</span><span id="level-time">Time: 60s</span><span id="score">Score: 0</span><span id="lives">Lives: 5</span><span id="coins">Coins: 0</span>
       </div>
       <div class="game-wrap">
     <canvas id="game" width="480" height="720" aria-label="Space Dodger game area"></canvas>
@@ -61,19 +149,30 @@
         <h2 id="panel-title">Ready, pilot?</h2>
         <p id="panel-copy">Use the ← and → arrow keys to steer your ship. Dodge asteroids and collect the gold coins. You have five lives!</p>
         <button id="start-button" type="button">Start game</button>
+        <label id="level-picker-wrap" class="level-picker" for="level-picker" hidden>Replay a completed level <select id="level-picker" aria-label="Choose a previously completed level"></select></label>
         <p id="best-copy">Best score: 0</p>
       </div>
     </section>
   </div>
-      <div class="game-controls"><button id="pause-button" class="hidden" type="button">Pause</button></div>
+      <div class="touch-controls" id="touch-controls" aria-label="Touch movement controls">
+        <button type="button" data-key="ArrowLeft" aria-label="Move left">◀</button>
+        <button type="button" data-key="ArrowRight" aria-label="Move right">▶</button>
+      </div>
+      <div class="game-controls"><button id="tuning-button" class="hidden" type="button" aria-controls="power-settings-section" aria-expanded="false">Tune</button><button id="pause-button" class="hidden" type="button">Pause</button></div>
     </div>
     <section class="power-settings" id="power-settings-section" aria-label="UAT power-up settings">
-      <h2>UAT POWER-UP SETTINGS</h2>
+      <div class="settings-heading"><h2>UAT TUNING</h2><button id="close-tuning-button" type="button">Close</button></div>
+      <h2 class="settings-subheading">POWER-UP SETTINGS</h2>
       <p>Set each power-up spawn weight from 0% (off) to 300%. Higher values make that power-up more likely relative to the others. Changes are saved on this device.</p>
+      <h2 style="margin-top:18px">LEVEL DIFFICULTY</h2>
+      <p class="setting-note">Speed and asteroid spawn frequency each increase by their selected percentage per level, compounded. Asteroids have a minimum 0.65-second spawn gap. Coins and power-ups travel at 95% of asteroid speed.</p>
+      <label class="power-setting" for="level-speed-increase"><span>Asteroid speed increase / level</span><input id="level-speed-increase" type="range" min="0" max="50" step="1"><output id="level-speed-increase-value"></output></label>
+      <label class="power-setting" for="level-frequency-increase"><span>Asteroid frequency increase / level</span><input id="level-frequency-increase" type="range" min="0" max="50" step="1"><output id="level-frequency-increase-value"></output></label>
+      <label class="power-setting" for="level-duration"><span>Level length</span><input id="level-duration" type="range" min="20" max="600" step="10"><output id="level-duration-value"></output></label>
       <label class="power-setting" for="shield-frequency"><span>Shield</span><input id="shield-frequency" type="range" min="0" max="300" step="10"><output id="shield-frequency-value" for="shield-frequency"></output></label>
       <label class="power-setting" for="magnet-frequency"><span>Magnet</span><input id="magnet-frequency" type="range" min="0" max="300" step="10"><output id="magnet-frequency-value" for="magnet-frequency"></output></label>
       <label class="power-setting" for="transmute-frequency"><span>Asteroid converter</span><input id="transmute-frequency" type="range" min="0" max="300" step="10"><output id="transmute-frequency-value" for="transmute-frequency"></output></label>
-      <div class="settings-actions"><button id="reset-power-settings" type="button">Reset defaults</button></div>
+      <div class="settings-actions"><span id="tuning-export-status" role="status" aria-live="polite"></span><button id="copy-tuning-config" type="button">Copy config</button><button id="reset-power-settings" type="button">Reset defaults</button></div>
     </section>
   </div>
   <p class="help">Controls: ← → move · ↑ ↓ also work · P or Esc to pause/resume. Green shields grant 20 seconds of invincibility. Blue magnets pull coins towards you for 10 seconds; orange converters turn asteroids into coins for 8 seconds. Pink high-value coins are worth five coins. After a hit, your ship flashes for 2 seconds.</p>
@@ -85,14 +184,34 @@
   const $ = id => document.getElementById(id);
   const W = canvas.width, H = canvas.height;
   const keys = new Set();
+  let touchTarget = null;
   let state = 'ready', lastTime = 0, elapsed = 0, score = 0, coins = 0, lives = 5;
+  const DEFAULT_LEVEL_DURATION = 60;
+  let LEVEL_DURATION = DEFAULT_LEVEL_DURATION;
+  let levelNumber = 1, highestCompletedLevel = 0;
   let cheatActive = false, cheatProgress = 0, explosionTimer = 0;
   let particles = [], shockwaves = [];
   let obstacleTimer = 0, coinTimer = 0, powerTimer = 0, obstacles = [], pickups = [], stars = [];
   const scoreScope = document.querySelector('meta[name="space-dodger-score-scope"]')?.content || 'unknown';
   const bestScoreKey = 'spaceDodgerBest:' + scoreScope;
-  const defaultPowerRates = {shield:100, magnet:100, transmute:100};
+  const completedLevelKey = 'spaceDodgerCompletedLevel:' + scoreScope;
+  try { highestCompletedLevel = Math.max(0, Math.floor(Number(localStorage.getItem(completedLevelKey)) || 0)); } catch {}
+  const defaultPowerRates = {shield:300, magnet:300, transmute:300};
   const powerRatesKey = 'spaceDodgerPowerRates:' + scoreScope;
+  const DEFAULT_LEVEL_SPEED_INCREASE = 3;
+  const DEFAULT_LEVEL_FREQUENCY_INCREASE = 3;
+  const levelSpeedIncreaseKey = 'spaceDodgerLevelSpeedIncrease:' + scoreScope;
+  const levelFrequencyIncreaseKey = 'spaceDodgerLevelFrequencyIncrease:' + scoreScope;
+  const levelDurationKey = 'spaceDodgerLevelDuration:' + scoreScope;
+  let levelSpeedIncrease = DEFAULT_LEVEL_SPEED_INCREASE;
+  let levelFrequencyIncrease = DEFAULT_LEVEL_FREQUENCY_INCREASE;
+  if (scoreScope === 'uat') {
+    try {
+      levelSpeedIncrease = Math.max(0, Math.min(50, Number(localStorage.getItem(levelSpeedIncreaseKey) ?? DEFAULT_LEVEL_SPEED_INCREASE)));
+      levelFrequencyIncrease = Math.max(0, Math.min(50, Number(localStorage.getItem(levelFrequencyIncreaseKey) ?? DEFAULT_LEVEL_FREQUENCY_INCREASE)));
+      LEVEL_DURATION = Math.max(20, Math.min(600, Number(localStorage.getItem(levelDurationKey) ?? DEFAULT_LEVEL_DURATION)));
+    } catch {}
+  }
   let powerRates = {...defaultPowerRates};
   try { powerRates = {...defaultPowerRates, ...JSON.parse(localStorage.getItem(powerRatesKey) || '{}')}; } catch {}
   const powerRateIds = ['shield','magnet','transmute'];
@@ -106,13 +225,115 @@
   powerRateIds.forEach(type=>$ (type+'-frequency').addEventListener('input',e=>{
     powerRates[type]=Number(e.target.value); $(type+'-frequency-value').textContent=powerRates[type]+'%'; savePowerRates();
   }));
+  // Export the live UAT tuning values as a portable JSON config for review.
+  const copyTuningButton = $('copy-tuning-config');
+  const tuningExportStatus = $('tuning-export-status');
+  function getTuningConfig() {
+    return {
+      schemaVersion: 1,
+      game: 'space-dodger',
+      environment: scoreScope,
+      tuning: {
+        levelDurationSeconds: LEVEL_DURATION,
+        asteroidSpeedIncreasePerLevelPercent: levelSpeedIncrease,
+        asteroidSpawnFrequencyIncreasePerLevelPercent: levelFrequencyIncrease,
+        powerUpSpawnWeightsPercent: {
+          shield: powerRates.shield,
+          magnet: powerRates.magnet,
+          asteroidConverter: powerRates.transmute
+        }
+      }
+    };
+  }
+  async function copyTuningConfig() {
+    const configText = JSON.stringify(getTuningConfig(), null, 2);
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(configText);
+      } else {
+        throw new Error('Clipboard API unavailable');
+      }
+      tuningExportStatus.textContent = 'Config copied — paste it into ChatGPT.';
+    } catch {
+      // Fallback for browsers that do not expose the Clipboard API.
+      const temporary = document.createElement('textarea');
+      temporary.value = configText;
+      temporary.setAttribute('readonly', '');
+      temporary.style.position = 'fixed';
+      temporary.style.opacity = '0';
+      document.body.appendChild(temporary);
+      temporary.select();
+      temporary.setSelectionRange(0, temporary.value.length);
+      let copied = false;
+      try { copied = document.execCommand('copy'); } catch {}
+      temporary.remove();
+      tuningExportStatus.textContent = copied
+        ? 'Config copied — paste it into ChatGPT.'
+        : 'Copy unavailable here. Try again in Safari or Chrome.';
+    }
+  }
+  copyTuningButton.addEventListener('click', copyTuningConfig);
   $('reset-power-settings').addEventListener('click',()=>{
     powerRates={...defaultPowerRates}; syncPowerRateControls(); savePowerRates();
+    levelSpeedIncrease=DEFAULT_LEVEL_SPEED_INCREASE;
+    if(levelSpeedInput){levelSpeedInput.value=levelSpeedIncrease;levelSpeedOutput.textContent=levelSpeedIncrease+'%';}
+    levelFrequencyIncrease=DEFAULT_LEVEL_FREQUENCY_INCREASE;
+    if(levelFrequencyInput){levelFrequencyInput.value=levelFrequencyIncrease;levelFrequencyOutput.textContent=levelFrequencyIncrease+'%';}
+    LEVEL_DURATION=DEFAULT_LEVEL_DURATION;
+    if(levelDurationInput){levelDurationInput.value=LEVEL_DURATION;levelDurationOutput.textContent=LEVEL_DURATION+'s';}
+    try { localStorage.setItem(levelSpeedIncreaseKey,String(levelSpeedIncrease)); localStorage.setItem(levelFrequencyIncreaseKey,String(levelFrequencyIncrease)); localStorage.setItem(levelDurationKey,String(LEVEL_DURATION)); } catch {}
+    updateHud();
   });
   syncPowerRateControls();
+  const levelSpeedInput = $('level-speed-increase');
+  const levelSpeedOutput = $('level-speed-increase-value');
+  const levelFrequencyInput = $('level-frequency-increase');
+  const levelFrequencyOutput = $('level-frequency-increase-value');
+  const levelDurationInput = $('level-duration');
+  const levelDurationOutput = $('level-duration-value');
+  if (levelDurationInput && levelDurationOutput) {
+    levelDurationInput.value = LEVEL_DURATION;
+    levelDurationOutput.textContent = LEVEL_DURATION + 's';
+    levelDurationInput.addEventListener('input', e => {
+      LEVEL_DURATION = Math.max(20, Math.min(600, Number(e.target.value)));
+      levelDurationOutput.textContent = LEVEL_DURATION + 's';
+      try { localStorage.setItem(levelDurationKey, String(LEVEL_DURATION)); } catch {}
+      updateHud();
+    });
+  }
+  if (levelSpeedInput && levelSpeedOutput) {
+    levelSpeedInput.value = levelSpeedIncrease;
+    levelSpeedOutput.textContent = levelSpeedIncrease + '%';
+    levelSpeedInput.addEventListener('input', e => {
+      levelSpeedIncrease = Math.max(0, Math.min(50, Number(e.target.value)));
+      levelSpeedOutput.textContent = levelSpeedIncrease + '%';
+      try { localStorage.setItem(levelSpeedIncreaseKey, String(levelSpeedIncrease)); } catch {}
+    });
+  }
+  if (levelFrequencyInput && levelFrequencyOutput) {
+    levelFrequencyInput.value = levelFrequencyIncrease;
+    levelFrequencyOutput.textContent = levelFrequencyIncrease + '%';
+    levelFrequencyInput.addEventListener('input', e => {
+      levelFrequencyIncrease = Math.max(0, Math.min(50, Number(e.target.value)));
+      levelFrequencyOutput.textContent = levelFrequencyIncrease + '%';
+      try { localStorage.setItem(levelFrequencyIncreaseKey, String(levelFrequencyIncrease)); } catch {}
+    });
+  }
   // The frequency editor is strictly a UAT-only control. Production builds
   // receive a version score scope during release assembly.
   $('power-settings-section').hidden = scoreScope !== 'uat';
+  const tuningButton = $('tuning-button');
+  const closeTuningButton = $('close-tuning-button');
+  function setTuningOpen(open) {
+    document.querySelector('main').classList.toggle('tuning-open', open);
+    tuningButton.setAttribute('aria-expanded', String(open));
+    tuningButton.textContent = open ? 'Close tune' : 'Tune';
+  }
+  if (scoreScope === 'uat') {
+    tuningButton.classList.remove('hidden');
+    tuningButton.addEventListener('click', () => setTuningOpen(!document.querySelector('main').classList.contains('tuning-open')));
+    closeTuningButton.addEventListener('click', () => setTuningOpen(false));
+  }
   $('game-layout')?.classList.toggle('production-layout', scoreScope !== 'uat');
   // UAT-only preview lets us verify the production layout without releasing.
   const layoutPreviewButton = $('layout-preview-button');
@@ -133,19 +354,66 @@
 
   for (let i=0;i<90;i++) stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.6+.3,s:18+Math.random()*45});
 
-  function reset() {
-    score=0; coins=0; lives=5; elapsed=0; obstacleTimer=.5; coinTimer=1.1; powerTimer=8;
-    obstacles=[]; pickups=[]; particles=[]; shockwaves=[]; player.x=W/2; player.y=H-100; hitUntil=0; shieldUntil=0; magnetUntil=0; transmuteUntil=0;
+  function resetLevelWorld() {
+    elapsed=0; obstacleTimer=.5; coinTimer=1.1; powerTimer=8;
+    obstacles=[]; pickups=[]; particles=[]; shockwaves=[];
+    player.x=W/2; player.y=H-100;
+    hitUntil=0; shieldUntil=0; magnetUntil=0; transmuteUntil=0;
     cheatActive=false; cheatProgress=0; explosionTimer=0;
-    $('pause-button').classList.add('hidden');
     updateHud();
   }
+  function resetRun(startLevel=1) {
+    score=0; coins=0; lives=5; levelNumber=startLevel;
+    resetLevelWorld();
+    $('pause-button').classList.add('hidden');
+  }
   function updateHud() {
+    $('level').textContent='Level: '+levelNumber;
+    $('level-time').textContent='Time: '+Math.max(0,Math.ceil(LEVEL_DURATION-elapsed))+'s';
     $('score').textContent='Score: '+Math.floor(score);
     $('lives').textContent='Lives: '+lives;
     $('coins').textContent='Coins: '+coins;
   }
-  function start() { reset(); state='playing'; $('overlay').classList.add('hidden'); $('pause-button').classList.remove('hidden'); $('pause-button').textContent='Pause'; lastTime=performance.now(); requestAnimationFrame(loop); }
+  function refreshLevelPicker() {
+    const wrap=$('level-picker-wrap'), picker=$('level-picker');
+    picker.replaceChildren();
+    const next=document.createElement('option');
+    next.value='next'; next.textContent='Continue to Level '+(highestCompletedLevel+1); picker.append(next);
+    for(let n=1;n<=highestCompletedLevel;n++) {
+      const option=document.createElement('option');
+      option.value=String(n); option.textContent='Replay Level '+n; picker.append(option);
+    }
+    picker.value='next';
+    wrap.hidden=highestCompletedLevel<1;
+  }
+  function showStartChoices() {
+    refreshLevelPicker();
+    $('start-button').textContent='Continue to Level '+(highestCompletedLevel+1);
+  }
+  function start() { resetRun(1); beginCurrentLevel(); }
+  function beginCurrentLevel() {
+    state='playing'; $('overlay').classList.add('hidden');
+    $('pause-button').classList.remove('hidden'); $('pause-button').textContent='Pause';
+    lastTime=performance.now(); requestAnimationFrame(loop);
+  }
+  function startNewRun(startLevel) { resetRun(startLevel); beginCurrentLevel(); }
+  function startNextLevel() {
+    levelNumber=highestCompletedLevel+1;
+    resetLevelWorld();
+    beginCurrentLevel();
+  }
+  function completeLevel() {
+    highestCompletedLevel=Math.max(highestCompletedLevel,levelNumber);
+    try { localStorage.setItem(completedLevelKey,String(highestCompletedLevel)); } catch {}
+    state='levelComplete';
+    $('panel-title').textContent='Level '+levelNumber+' complete!';
+    $('panel-copy').textContent='Excellent flying! You survived the full '+LEVEL_DURATION+' seconds. Take a breather, then continue from your latest completed progress, or replay any level you have already completed.';
+    refreshLevelPicker();
+    $('start-button').textContent='Continue to Level '+(highestCompletedLevel+1);
+    $('best-copy').textContent='Best score: '+best;
+    $('pause-button').classList.add('hidden');
+    $('overlay').classList.remove('hidden');
+  }
   function pauseGame() {
     if(state!=='playing') return;
     state='paused'; keys.clear();
@@ -204,11 +472,30 @@
     $('panel-title').textContent='Game Over';
     $('panel-copy').textContent='Final score: '+finalScore+' · Coins collected: '+coins+'. Fancy another flight?';
     $('best-copy').textContent='Best score: '+best;
-    $('start-button').textContent='Play again';
+    refreshLevelPicker();
+    $('start-button').textContent='Continue from Level '+(highestCompletedLevel+1);
     $('pause-button').classList.add('hidden');
     $('overlay').classList.remove('hidden');
   }
-  $('start-button').addEventListener('click',()=>{if(state==='paused')resumeGame();else start();});
+  $('start-button').addEventListener('click',()=>{
+    if(state==='paused'){resumeGame();return;}
+    const choice=$('level-picker').value;
+    if(choice==='next') {
+      if(state==='levelComplete') startNextLevel();
+      else if(state==='over' || state==='ready') startNewRun(highestCompletedLevel+1);
+      return;
+    }
+    const selected=Number(choice);
+    if(selected>=1 && selected<=highestCompletedLevel) startNewRun(selected);
+    else if(state==='ready' || state==='over') startNewRun(1);
+  });
+  $('level-picker').addEventListener('change',()=>{
+    const choice=$('level-picker').value;
+    $('start-button').textContent=choice==='next'
+      ? (state==='levelComplete'?'Continue to Level '+(highestCompletedLevel+1):'Continue to Level '+(highestCompletedLevel+1))
+      : 'Replay Level '+choice;
+  });
+  showStartChoices();
   $('pause-button').addEventListener('click',togglePause);
   window.addEventListener('keydown',e=>{
     if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown',' '].includes(e.key)) e.preventDefault();
@@ -229,15 +516,62 @@
     if((e.key==='Enter'||e.key===' ') && state!=='playing' && state!=='paused') start();
   });
   window.addEventListener('keyup',e=>keys.delete(e.key));
-  window.addEventListener('blur',()=>{keys.clear();if(state==='playing')pauseGame();});
+  // Touch users can steer with the on-screen buttons or drag directly across the playfield.
+  document.querySelectorAll('.touch-controls [data-key]').forEach(button=>{
+    const key=button.dataset.key;
+    const release=()=>{keys.delete(key);button.classList.remove('is-pressed');};
+    button.addEventListener('pointerdown',event=>{
+      event.preventDefault();
+      if(state!=='playing') return;
+      button.setPointerCapture(event.pointerId); keys.add(key); button.classList.add('is-pressed');
+    });
+    button.addEventListener('pointerup',release);
+    button.addEventListener('pointercancel',release);
+    button.addEventListener('lostpointercapture',release);
+  });
+  function updateTouchTarget(event) {
+    const rect=canvas.getBoundingClientRect();
+    touchTarget={x:(event.clientX-rect.left)*W/rect.width,y:(event.clientY-rect.top)*H/rect.height};
+  }
+  canvas.addEventListener('pointerdown',event=>{
+    if(state!=='playing') return;
+    event.preventDefault(); canvas.setPointerCapture(event.pointerId); updateTouchTarget(event);
+  });
+  canvas.addEventListener('pointermove',event=>{if(canvas.hasPointerCapture(event.pointerId)&&state==='playing') updateTouchTarget(event);});
+  const clearTouchTarget=()=>{touchTarget=null;};
+  canvas.addEventListener('pointerup',clearTouchTarget);
+  canvas.addEventListener('pointercancel',clearTouchTarget);
+  canvas.addEventListener('lostpointercapture',clearTouchTarget);
+  window.addEventListener('blur',()=>{keys.clear();touchTarget=null;if(state==='playing')pauseGame();});
+  document.addEventListener('visibilitychange',()=>{if(document.hidden){keys.clear();touchTarget=null;if(state==='playing')pauseGame();}});
 
+  if('serviceWorker' in navigator && location.protocol!=='file:') {
+    window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(error=>console.warn('Offline support could not be enabled:',error)));
+  }
+
+  // Keep the two level progression settings independent:
+  // speed changes object velocity only; frequency changes spawn interval only.
+  function asteroidSpeedMultiplier() {
+    return Math.pow(1 + levelSpeedIncrease / 100, Math.max(0, levelNumber - 1));
+  }
+  function asteroidSpawnFrequencyMultiplier() {
+    return Math.pow(1 + levelFrequencyIncrease / 100, Math.max(0, levelNumber - 1));
+  }
+  function asteroidSpeed() {
+    // Speed setting affects asteroid velocity, never the spawn interval.
+    return (170 + elapsed * 1.5) * asteroidSpeedMultiplier();
+  }
+  function fallingPickupSpeed() {
+    // Coins and power-ups are consistently 95% of asteroid speed.
+    return asteroidSpeed() * 0.95;
+  }
   function spawnCoinAt(x,y,highValue=false) {
-    pickups.push({type:highValue?'highCoin':'coin',x,y,r:highValue?14:11,speed:175+elapsed*3,phase:Math.random()*6,value:highValue?5:1});
+    pickups.push({type:highValue?'highCoin':'coin',x,y,r:highValue?14:11,speed:fallingPickupSpeed(),phase:Math.random()*6,value:highValue?5:1});
   }
   function spawnRock() {
     const r=17+Math.random()*23, x=r+Math.random()*(W-2*r);
     if(elapsed<transmuteUntil){spawnCoinAt(x,-r);return;}
-    obstacles.push({x,y:-r,r,rot:Math.random()*6.28,spin:(Math.random()-.5)*2.4,speed:165+Math.random()*75+elapsed*4});
+    obstacles.push({x,y:-r,r,rot:Math.random()*6.28,spin:(Math.random()-.5)*2.4,speed:asteroidSpeed()});
   }
   function spawnCoin() { spawnCoinAt(24+Math.random()*(W-48),-18,Math.random()<.12); }
   function spawnPowerUp() {
@@ -249,7 +583,7 @@
       roll-=powerRates[candidate];
       if(roll<0){type=candidate;break;}
     }
-    pickups.push({type,x:28+Math.random()*(W-56),y:-20,r:15,speed:150+elapsed*2});
+    pickups.push({type,x:28+Math.random()*(W-56),y:-20,r:15,speed:fallingPickupSpeed()});
   }
   function activateTransmute() {
     transmuteUntil=elapsed+8;
@@ -267,16 +601,27 @@
     awardPoints(dt*5);
     const dx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0);
     const dy=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
+    if(touchTarget) {
+      const blend=Math.min(1,dt*12);
+      player.x+=(touchTarget.x-player.x)*blend;
+      player.y+=(touchTarget.y-player.y)*blend;
+    }
     player.x=Math.max(25,Math.min(W-25,player.x+dx*player.speed*dt));
     player.y=Math.max(35,Math.min(H-35,player.y+dy*player.speed*dt));
 
     obstacleTimer-=dt; coinTimer-=dt; powerTimer-=dt;
-    const rockInterval=Math.max(.38,1.15-elapsed*.009);
-    if(obstacleTimer<=0){spawnRock();obstacleTimer=rockInterval*(.75+Math.random()*.5);}
+    const difficultyTime=(levelNumber-1)*LEVEL_DURATION+elapsed;
+    // Frequency setting affects asteroid spawn timing, never object velocity.
+    const rockInterval=1.15 / asteroidSpawnFrequencyMultiplier();
+    if(obstacleTimer<=0){
+      spawnRock();
+      // Keep a hard minimum gap so later levels stay challenging but playable.
+      obstacleTimer=Math.max(.65,rockInterval*(.85+Math.random()*.3));
+    }
     if(coinTimer<=0){spawnCoin();coinTimer=1.25+Math.random()*1.15;}
     if(powerTimer<=0){spawnPowerUp();powerTimer=17+Math.random()*9;}
 
-    stars.forEach(s=>{s.y+=s.s*dt*(1+elapsed*.012);if(s.y>H){s.y=0;s.x=Math.random()*W;}});
+    stars.forEach(s=>{s.y+=s.s*dt*(1+difficultyTime*.012);if(s.y>H){s.y=0;s.x=Math.random()*W;}});
     obstacles.forEach(o=>{o.y+=o.speed*dt;o.rot+=o.spin*dt;});
     pickups.forEach(p=>{
       const isCoin=p.type==='coin'||p.type==='highCoin';
@@ -323,6 +668,7 @@
     }
     pickups=pickups.filter(p=>!p.taken);
     updateHud();
+    if(elapsed>=LEVEL_DURATION) completeLevel();
   }
 
   function drawShip() {
