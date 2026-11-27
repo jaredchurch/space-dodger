@@ -55,6 +55,65 @@
     .hidden { display:none; }
     .power { color:#8fffd0; }
     @media (max-width:420px) { body{padding:10px} .hud{gap:4px}.hud span{padding:6px 2px; min-height:32px} }
+
+    /* iPhone / touch layout: make the playfield the entire available viewport. */
+    @media (max-width:760px) and (pointer:coarse) {
+      html, body { width:100%; height:100%; min-height:100%; margin:0; overflow:hidden; }
+      body {
+        position:fixed; inset:0; display:block; padding:0;
+        height:100vh; height:100dvh; min-height:0;
+        background:#050d19;
+        overscroll-behavior:none;
+      }
+      main {
+        display:flex; flex-direction:column;
+        width:100%; height:100vh; height:100dvh; max-width:none;
+        padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+        text-align:center;
+      }
+      main > h1, main > .tagline, main > .help, #layout-preview-button,
+      #power-settings-section { display:none !important; }
+      .game-layout, .game-layout.production-layout {
+        display:flex; flex:1 1 auto; flex-direction:column;
+        width:100%; min-width:0; min-height:0; gap:0;
+      }
+      .game-column {
+        display:flex; flex:1 1 auto; flex-direction:column;
+        width:100%; min-width:0; min-height:0;
+      }
+      .hud {
+        flex:0 0 auto; width:100%; max-width:none; gap:3px;
+        margin:0; padding:5px 5px 6px;
+        font-size:clamp(.58rem,2.7vw,.78rem);
+      }
+      .hud span {
+        min-height:32px; padding:4px 1px; border-radius:6px;
+        font-size:inherit;
+      }
+      .game-wrap {
+        display:flex; flex:1 1 auto; align-items:stretch; justify-content:center;
+        width:100%; min-width:0; min-height:0; height:auto; margin:0;
+        border:0; border-radius:0; box-shadow:none;
+      }
+      canvas {
+        display:block; width:100%; height:100%; min-height:0;
+        aspect-ratio:auto; touch-action:none;
+      }
+      .overlay { padding:18px; }
+      .panel { width:min(100%,340px); max-height:calc(100% - 24px); overflow:auto; padding:20px; }
+      .panel h2 { font-size:1.55rem; }
+      .panel p { font-size:.9rem; }
+      .touch-controls {
+        display:flex; flex:0 0 auto; height:66px; gap:22px;
+        margin:0; padding:4px 0 4px;
+      }
+      .touch-controls button { width:min(28vw,100px); height:56px; }
+      .game-controls {
+        position:fixed; z-index:5; top:calc(env(safe-area-inset-top) + 43px);
+        right:8px; min-height:0; margin:0;
+      }
+      .game-controls button { padding:7px 13px; font-size:.78rem; }
+    }
   </style>
 </head>
 <body>
