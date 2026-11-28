@@ -56,6 +56,7 @@
       .upgrade-shop .shop-balance { margin:5px 0 0; font-size:.82rem; }
     }
     .level-picker { display:block; margin:12px 0; color:#c0d3e8; font-size:.85rem; }
+    .level-picker[hidden] { display:none !important; }
     .level-picker select { display:block; width:100%; margin-top:6px; padding:9px; border:1px solid #467ba4; border-radius:8px; color:#eef6ff; background:#102b45; font:inherit; }
     button { border:0; border-radius:999px; padding:12px 24px; color:#06111c; background:#69d6ff; font:700 1rem inherit; cursor:pointer; box-shadow:0 4px 18px #69d6ff44; }
     button:hover { background:#a1e8ff; transform:translateY(-1px); }
@@ -211,8 +212,8 @@
           <div id="upgrade-grid" class="upgrade-grid"></div>
           <p id="shop-balance" class="shop-balance">Coins available: 0</p>
         </section>
-        <button id="start-button" type="button">Start game</button>
         <label id="level-picker-wrap" class="level-picker" for="level-picker" hidden>Replay a completed level <select id="level-picker" aria-label="Choose a previously completed level"></select></label>
+        <button id="start-button" type="button">Start game</button>
         <p id="best-copy">Best score: 0</p>
       </div>
     </section>
@@ -508,7 +509,7 @@
     $('panel-title').textContent='Level '+levelNumber+' complete!';
     $('panel-copy').textContent='You survived the level! Spend your coins on ship upgrades, then continue when you are ready.';
     refreshLevelPicker();
-    $('level-picker-wrap').hidden=true;
+    $('level-picker-wrap').hidden=highestCompletedLevel<1;
     $('upgrade-shop').hidden=false;
     renderUpgradeShop();
     $('start-button').textContent='Continue to Level '+(highestCompletedLevel+1);
