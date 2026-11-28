@@ -55,7 +55,9 @@
       .upgrade-card button { padding:6px 4px; font-size:.68rem; }
       .upgrade-shop .shop-balance { margin:5px 0 0; font-size:.82rem; }
     }
-    .level-picker { display:block; margin:12px 0; color:#c0d3e8; font-size:.85rem; }
+    .level-picker { display:block; margin:12px 0; padding:10px; border:1px solid #69d6ff; border-radius:10px; color:#eaf8ff; background:#102b45; font-size:.85rem; font-weight:700; text-align:left; }
+    .level-picker span { display:block; margin-bottom:5px; color:#69d6ff; font-size:.72rem; letter-spacing:.06em; }
+    .level-picker[hidden] { display:none !important; }
     .level-picker[hidden] { display:none !important; }
     .level-picker select { display:block; width:100%; margin-top:6px; padding:9px; border:1px solid #467ba4; border-radius:8px; color:#eef6ff; background:#102b45; font:inherit; }
     button { border:0; border-radius:999px; padding:12px 24px; color:#06111c; background:#69d6ff; font:700 1rem inherit; cursor:pointer; box-shadow:0 4px 18px #69d6ff44; }
@@ -171,6 +173,9 @@
       }
       .panel h2 { margin:0 0 4px; font-size:1.25rem; }
       .panel > p { margin:3px 0 6px; font-size:.78rem; line-height:1.2; }
+      .level-picker { margin:8px 0; padding:9px; font-size:.82rem; }
+      .level-picker span { font-size:.7rem; }
+      .level-picker select { margin-top:3px; padding:10px; font-size:.9rem; }
       .upgrade-shop { width:100%; margin:4px auto 6px; }
       .upgrade-shop h3 { margin:0 0 3px; font-size:.82rem; }
       .upgrade-shop .shop-intro { margin:0 0 4px; font-size:.64rem; line-height:1.15; }
@@ -206,13 +211,13 @@
       <div class="panel">
         <h2 id="panel-title">Ready, pilot?</h2>
         <p id="panel-copy">Use the ← and → arrow keys to steer your ship. Dodge asteroids and collect the gold coins. You have five lives!</p>
+        <label id="level-picker-wrap" class="level-picker" for="level-picker" hidden><span>REPLAY AN EARLIER LEVEL</span><select id="level-picker" aria-label="Choose a previously completed level"></select></label>
         <section id="upgrade-shop" class="upgrade-shop" aria-label="Spaceship upgrade shop" hidden>
           <h3>SHIPYARD — LEVEL UPGRADES</h3>
           <p class="shop-intro">Spend your collected coins on upgrades. These last for this run.</p>
           <div id="upgrade-grid" class="upgrade-grid"></div>
           <p id="shop-balance" class="shop-balance">Coins available: 0</p>
         </section>
-        <label id="level-picker-wrap" class="level-picker" for="level-picker" hidden>Replay a completed level <select id="level-picker" aria-label="Choose a previously completed level"></select></label>
         <button id="start-button" type="button">Start game</button>
         <p id="best-copy">Best score: 0</p>
       </div>
