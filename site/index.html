@@ -159,6 +159,34 @@
       }
       .game-controls button { padding:7px 13px; font-size:.78rem; }
     }
+  
+    /* Final mobile shipyard sizing: override the general fullscreen panel rules below. */
+    @media (max-width:760px) and (pointer:coarse) {
+      .overlay { padding:8px; }
+      .panel {
+        width:min(100%,520px); max-width:520px;
+        max-height:calc(100% - 8px); overflow:auto;
+        padding:10px; 
+      }
+      .panel h2 { margin:0 0 4px; font-size:1.25rem; }
+      .panel > p { margin:3px 0 6px; font-size:.78rem; line-height:1.2; }
+      .upgrade-shop { width:100%; margin:4px auto 6px; }
+      .upgrade-shop h3 { margin:0 0 3px; font-size:.82rem; }
+      .upgrade-shop .shop-intro { margin:0 0 4px; font-size:.64rem; line-height:1.15; }
+      .upgrade-grid {
+        grid-template-columns:repeat(2,minmax(0,1fr));
+        gap:4px; max-height:none; overflow:visible; padding:0;
+      }
+      .upgrade-card { padding:5px; border-radius:7px; }
+      .upgrade-card strong { font-size:.7rem; line-height:1.1; }
+      .upgrade-card p { min-height:0; margin:2px 0 3px; font-size:.59rem; line-height:1.12; }
+      .upgrade-card .upgrade-level { margin:0 0 3px; font-size:.58rem; }
+      .upgrade-card button { padding:5px 3px; font-size:.61rem; line-height:1.1; }
+      .upgrade-shop .shop-balance { margin:4px 0 0; font-size:.75rem; }
+      #start-button { padding:9px 18px; font-size:.86rem; }
+      #best-copy { margin:3px 0 0; font-size:.7rem; }
+    }
+
   </style>
 </head>
 <body>
@@ -438,11 +466,11 @@
   }
   function startNewRun(startLevel) { resetRun(startLevel); beginCurrentLevel(); }
   const upgradeCatalog = [
-    {id:'blaster',name:'Twin Blasters',description:'Automatically fire bolts upwards. Asteroids destroyed earn 10 points and 2 coins.',baseCost:30,max:2,costLabel:['Unlock','Rapid fire']},
-    {id:'engine',name:'Ion Thrusters',description:'Increase ship movement speed by 15% per level.',baseCost:20,max:2,costLabel:['Upgrade','Upgrade']},
-    {id:'magnet',name:'Coin Magnet',description:'Pull nearby coins towards your ship from a greater distance.',baseCost:20,max:3,costLabel:['Upgrade','Upgrade','Upgrade']},
-    {id:'hull',name:'Reinforced Hull',description:'Add one maximum life and repair one life immediately.',baseCost:30,max:2,costLabel:['Reinforce','Reinforce']},
-    {id:'shield',name:'Shield Capacitor',description:'Add 5 seconds to every green shield pickup per level.',baseCost:20,max:3,costLabel:['Upgrade','Upgrade','Upgrade']}
+    {id:'blaster',name:'Twin Blasters',description:'Auto-fire bolts; destroyed asteroids earn points and coins.',baseCost:30,max:2,costLabel:['Unlock','Rapid fire']},
+    {id:'engine',name:'Ion Thrusters',description:'Ship moves 15% faster per level.',baseCost:20,max:2,costLabel:['Upgrade','Upgrade']},
+    {id:'magnet',name:'Coin Magnet',description:'Attract coins from farther away.',baseCost:20,max:3,costLabel:['Upgrade','Upgrade','Upgrade']},
+    {id:'hull',name:'Reinforced Hull',description:'Gain 1 max life and restore 1 life.',baseCost:30,max:2,costLabel:['Reinforce','Reinforce']},
+    {id:'shield',name:'Shield Capacitor',description:'Shield pickups last 5 seconds longer per level.',baseCost:20,max:3,costLabel:['Upgrade','Upgrade','Upgrade']}
   ];
   function upgradeCost(item) { return item.baseCost * (upgrades[item.id] + 1); }
   function renderUpgradeShop() {
