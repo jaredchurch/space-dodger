@@ -26,6 +26,19 @@
     .panel { max-width:340px; padding:22px; border:1px solid #467ba4; border-radius:16px; background:#0b2035ed; box-shadow:0 10px 35px #0008; }
     .panel h2 { margin:0 0 10px; font-size:1.8rem; }
     .panel p { color:#c0d3e8; line-height:1.5; margin:8px 0 16px; }
+    .upgrade-shop { width:min(100%,560px); margin:12px auto 16px; text-align:left; }
+    .upgrade-shop[hidden] { display:none; }
+    .upgrade-shop h3 { margin:0 0 5px; color:#ffe18a; font-size:1.05rem; text-align:center; }
+    .upgrade-shop .shop-intro { margin:0 0 10px; font-size:.82rem; text-align:center; }
+    .upgrade-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; max-height:38vh; overflow:auto; padding:2px; }
+    .upgrade-card { min-width:0; padding:10px; border:1px solid #315a7d; border-radius:10px; background:#07182a; }
+    .upgrade-card strong { display:block; color:#eaf7ff; font-size:.88rem; }
+    .upgrade-card p { min-height:2.7em; margin:5px 0 8px; font-size:.74rem; line-height:1.35; }
+    .upgrade-card .upgrade-level { display:block; margin-bottom:7px; color:#9ebbd4; font-size:.72rem; }
+    .upgrade-card button { width:100%; padding:8px 6px; font-size:.78rem; }
+    .upgrade-card button:disabled { cursor:not-allowed; opacity:.45; transform:none; }
+    .upgrade-shop .shop-balance { margin:8px 0 0; color:#ffdf79; text-align:center; font-weight:800; font-variant-numeric:tabular-nums; }
+    @media (max-width:380px) { .upgrade-grid { grid-template-columns:1fr; max-height:34vh; } }
     .level-picker { display:block; margin:12px 0; color:#c0d3e8; font-size:.85rem; }
     .level-picker select { display:block; width:100%; margin-top:6px; padding:9px; border:1px solid #467ba4; border-radius:8px; color:#eef6ff; background:#102b45; font:inherit; }
     button { border:0; border-radius:999px; padding:12px 24px; color:#06111c; background:#69d6ff; font:700 1rem inherit; cursor:pointer; box-shadow:0 4px 18px #69d6ff44; }
@@ -148,6 +161,12 @@
       <div class="panel">
         <h2 id="panel-title">Ready, pilot?</h2>
         <p id="panel-copy">Use the ← and → arrow keys to steer your ship. Dodge asteroids and collect the gold coins. You have five lives!</p>
+        <section id="upgrade-shop" class="upgrade-shop" aria-label="Spaceship upgrade shop" hidden>
+          <h3>SHIPYARD — LEVEL UPGRADES</h3>
+          <p class="shop-intro">Spend your collected coins on upgrades. These last for this run.</p>
+          <div id="upgrade-grid" class="upgrade-grid"></div>
+          <p id="shop-balance" class="shop-balance">Coins available: 0</p>
+        </section>
         <button id="start-button" type="button">Start game</button>
         <label id="level-picker-wrap" class="level-picker" for="level-picker" hidden>Replay a completed level <select id="level-picker" aria-label="Choose a previously completed level"></select></label>
         <p id="best-copy">Best score: 0</p>
@@ -185,7 +204,9 @@
   const W = canvas.width, H = canvas.height;
   const keys = new Set();
   let touchTarget = null;
-  let state = 'ready', lastTime = 0, elapsed = 0, score = 0, coins = 0, lives = 5;
+  let state = 'ready', lastTime = 0, elapsed = 0, score = 0, coins = 0, lives = 5, maxLives = 5;
+  let upgrades = {blaster:0, engine:0, magnet:0, hull:0, shield:0};
+  let bullets = [], weaponTimer = 0;
   const DEFAULT_LEVEL_DURATION = 60;
   let LEVEL_DURATION = DEFAULT_LEVEL_DURATION;
   let levelNumber = 1, highestCompletedLevel = 0;
@@ -356,14 +377,17 @@
 
   function resetLevelWorld() {
     elapsed=0; obstacleTimer=.5; coinTimer=1.1; powerTimer=8;
-    obstacles=[]; pickups=[]; particles=[]; shockwaves=[];
+    obstacles=[]; pickups=[]; particles=[]; shockwaves=[]; bullets=[]; weaponTimer=0;
     player.x=W/2; player.y=H-100;
     hitUntil=0; shieldUntil=0; magnetUntil=0; transmuteUntil=0;
     cheatActive=false; cheatProgress=0; explosionTimer=0;
     updateHud();
   }
   function resetRun(startLevel=1) {
-    score=0; coins=0; lives=5; levelNumber=startLevel;
+    score=0; coins=0; lives=5; maxLives=5; levelNumber=startLevel;
+    upgrades={blaster:0,engine:0,magnet:0,hull:0,shield:0};
+    $('upgrade-shop').hidden=true;
+    $('level-picker-wrap').hidden=true;
     resetLevelWorld();
     $('pause-button').classList.add('hidden');
   }
@@ -371,7 +395,7 @@
     $('level').textContent='Level: '+levelNumber;
     $('level-time').textContent='Time: '+Math.max(0,Math.ceil(LEVEL_DURATION-elapsed))+'s';
     $('score').textContent='Score: '+Math.floor(score);
-    $('lives').textContent='Lives: '+lives;
+    $('lives').textContent='Lives: '+lives+'/'+maxLives;
     $('coins').textContent='Coins: '+coins;
   }
   function refreshLevelPicker() {
@@ -397,7 +421,38 @@
     lastTime=performance.now(); requestAnimationFrame(loop);
   }
   function startNewRun(startLevel) { resetRun(startLevel); beginCurrentLevel(); }
+  const upgradeCatalog = [
+    {id:'blaster',name:'Twin Blasters',description:'Automatically fire bolts upwards. Asteroids destroyed earn 10 points and 2 coins.',baseCost:30,max:2,costLabel:['Unlock','Rapid fire']},
+    {id:'engine',name:'Ion Thrusters',description:'Increase ship movement speed by 15% per level.',baseCost:20,max:2,costLabel:['Upgrade','Upgrade']},
+    {id:'magnet',name:'Coin Magnet',description:'Pull nearby coins towards your ship from a greater distance.',baseCost:20,max:3,costLabel:['Upgrade','Upgrade','Upgrade']},
+    {id:'hull',name:'Reinforced Hull',description:'Add one maximum life and repair one life immediately.',baseCost:30,max:2,costLabel:['Reinforce','Reinforce']},
+    {id:'shield',name:'Shield Capacitor',description:'Add 5 seconds to every green shield pickup per level.',baseCost:20,max:3,costLabel:['Upgrade','Upgrade','Upgrade']}
+  ];
+  function upgradeCost(item) { return item.baseCost * (upgrades[item.id] + 1); }
+  function renderUpgradeShop() {
+    const grid=$('upgrade-grid');
+    grid.innerHTML=upgradeCatalog.map(item=>{
+      const level=upgrades[item.id], capped=level>=item.max, cost=upgradeCost(item);
+      const label=capped?'MAX LEVEL':(item.costLabel[level]||'Upgrade')+' · '+cost+' coins';
+      return '<article class="upgrade-card"><strong>'+item.name+'</strong><p>'+item.description+'</p><span class="upgrade-level">Level '+level+' / '+item.max+'</span><button type="button" data-upgrade="'+item.id+'" '+(capped||coins<cost?'disabled':'')+'>'+label+'</button></article>';
+    }).join('');
+    $('shop-balance').textContent='Coins available: '+coins;
+  }
+  $('upgrade-grid').addEventListener('click',event=>{
+    const button=event.target.closest('button[data-upgrade]');
+    if(!button) return;
+    const item=upgradeCatalog.find(entry=>entry.id===button.dataset.upgrade);
+    if(!item||upgrades[item.id]>=item.max) return;
+    const cost=upgradeCost(item);
+    if(coins<cost) return;
+    coins-=cost;
+    upgrades[item.id]++;
+    if(item.id==='hull') { maxLives++; lives=Math.min(maxLives,lives+1); }
+    updateHud();
+    renderUpgradeShop();
+  });
   function startNextLevel() {
+    $('upgrade-shop').hidden=true;
     levelNumber=highestCompletedLevel+1;
     resetLevelWorld();
     beginCurrentLevel();
@@ -407,8 +462,11 @@
     try { localStorage.setItem(completedLevelKey,String(highestCompletedLevel)); } catch {}
     state='levelComplete';
     $('panel-title').textContent='Level '+levelNumber+' complete!';
-    $('panel-copy').textContent='Excellent flying! You survived the full '+LEVEL_DURATION+' seconds. Take a breather, then continue from your latest completed progress, or replay any level you have already completed.';
+    $('panel-copy').textContent='You survived the level! Spend your coins on ship upgrades, then continue when you are ready.';
     refreshLevelPicker();
+    $('level-picker-wrap').hidden=true;
+    $('upgrade-shop').hidden=false;
+    renderUpgradeShop();
     $('start-button').textContent='Continue to Level '+(highestCompletedLevel+1);
     $('best-copy').textContent='Best score: '+best;
     $('pause-button').classList.add('hidden');
@@ -601,13 +659,22 @@
     awardPoints(dt*5);
     const dx=(keys.has('ArrowRight')||keys.has('d')?1:0)-(keys.has('ArrowLeft')||keys.has('a')?1:0);
     const dy=(keys.has('ArrowDown')||keys.has('s')?1:0)-(keys.has('ArrowUp')||keys.has('w')?1:0);
+    const shipSpeed=player.speed*(1+upgrades.engine*.15);
     if(touchTarget) {
       const blend=Math.min(1,dt*12);
       player.x+=(touchTarget.x-player.x)*blend;
       player.y+=(touchTarget.y-player.y)*blend;
     }
-    player.x=Math.max(25,Math.min(W-25,player.x+dx*player.speed*dt));
-    player.y=Math.max(35,Math.min(H-35,player.y+dy*player.speed*dt));
+    player.x=Math.max(25,Math.min(W-25,player.x+dx*shipSpeed*dt));
+    player.y=Math.max(35,Math.min(H-35,player.y+dy*shipSpeed*dt));
+    if(upgrades.blaster>0) {
+      weaponTimer-=dt;
+      if(weaponTimer<=0) {
+        bullets.push({x:player.x-9,y:player.y-22,r:4,speed:560});
+        bullets.push({x:player.x+9,y:player.y-22,r:4,speed:560});
+        weaponTimer=upgrades.blaster>=2?.34:.62;
+      }
+    }
 
     obstacleTimer-=dt; coinTimer-=dt; powerTimer-=dt;
     const difficultyTime=(levelNumber-1)*LEVEL_DURATION+elapsed;
@@ -625,7 +692,8 @@
     obstacles.forEach(o=>{o.y+=o.speed*dt;o.rot+=o.spin*dt;});
     pickups.forEach(p=>{
       const isCoin=p.type==='coin'||p.type==='highCoin';
-      const magnetActive=isCoin&&elapsed<magnetUntil;
+      const passiveMagnet=isCoin&&upgrades.magnet>0&&Math.hypot(player.x-p.x,player.y-p.y)<(105+upgrades.magnet*45);
+      const magnetActive=isCoin&&(elapsed<magnetUntil||passiveMagnet);
       if(!magnetActive) p.y+=p.speed*dt;
       if(isCoin) {
         p.phase+=dt*5;
@@ -637,6 +705,18 @@
         }
       }
     });
+    for(const bullet of bullets) {
+      bullet.y-=bullet.speed*dt;
+      for(const rock of obstacles) {
+        if(!rock.destroyed&&Math.hypot(bullet.x-rock.x,bullet.y-rock.y)<rock.r+bullet.r) {
+          rock.destroyed=true; bullet.hit=true;
+          createExplosion(rock.x,rock.y,'#8be7ff',24,.65);
+          awardPoints(10); coins+=2;
+          break;
+        }
+      }
+    }
+    bullets=bullets.filter(b=>!b.hit&&b.y>-20);
     obstacles=obstacles.filter(o=>o.y<H+o.r&&!o.destroyed);
     pickups=pickups.filter(p=>p.y<H+30);
 
@@ -660,7 +740,7 @@
       if(!p.taken&&circleRect(p.x,p.y,p.r,{...player,w:player.w,h:player.h})) {
         p.taken=true;
         if(p.type==='coin'||p.type==='highCoin'){coins+=p.value||1;awardPoints(25*(p.value||1));}
-        else if(p.type==='shield'){shieldUntil=elapsed+20;}
+        else if(p.type==='shield'){shieldUntil=elapsed+20+upgrades.shield*5;}
         else if(p.type==='magnet'){magnetUntil=elapsed+10;}
         else if(p.type==='transmute'){activateTransmute();}
         updateHud();
@@ -677,6 +757,7 @@
     const shielded=elapsed<shieldUntil||cheatActive;
     ctx.save();ctx.translate(player.x,player.y);
     if(shielded){ctx.strokeStyle='#75ffc9';ctx.lineWidth=3;ctx.shadowColor='#65ffcb';ctx.shadowBlur=22;ctx.beginPath();ctx.arc(0,0,36,0,Math.PI*2);ctx.stroke();}
+    if(upgrades.magnet>0){ctx.strokeStyle='rgba(120,186,255,.32)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,105+upgrades.magnet*45,0,Math.PI*2);ctx.stroke();}
     ctx.shadowColor='#55caff';ctx.shadowBlur=18;
     ctx.fillStyle='#d9f4ff';ctx.beginPath();ctx.moveTo(0,-27);ctx.lineTo(19,20);ctx.lineTo(0,12);ctx.lineTo(-19,20);ctx.closePath();ctx.fill();
     ctx.fillStyle='#4bc8ff';ctx.beginPath();ctx.moveTo(-8,8);ctx.lineTo(-15,24);ctx.lineTo(-3,19);ctx.closePath();ctx.fill();
@@ -695,6 +776,10 @@
     stars.forEach(s=>{ctx.fillStyle='rgba(190,220,255,'+(.35+s.r*.25)+')';ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill();});
     ctx.strokeStyle='#142a40';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(0,H-55);ctx.lineTo(W,H-55);ctx.stroke();
     obstacles.forEach(drawRock);
+    bullets.forEach(b=>{
+      ctx.save();ctx.fillStyle='#9cecff';ctx.shadowColor='#69dfff';ctx.shadowBlur=14;
+      ctx.fillRect(b.x-2,b.y-9,4,14);ctx.restore();
+    });
     pickups.forEach(p=>{
       ctx.save();ctx.translate(p.x,p.y);
       if(p.type==='coin'||p.type==='highCoin'){
